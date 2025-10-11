@@ -42,6 +42,12 @@ class HabitHandler:
             modify_json_file(HABIT_STORAGE_JSON_PATH, updated_habit, value_to_update)
         except Exception as e:
             logger.error(f"An error occurred while modifying habit: {value_to_update}, error: {e}")
+    
+    def clear_database(self) -> None:
+        """Clear the habit database."""
+        logger.info("Clearing the habit database.")
+        write_json_file(HABIT_STORAGE_JSON_PATH, [])
+        logger.info("Habit database cleared successfully.")
 
 
 class HabitCore:
@@ -87,20 +93,42 @@ class HabitCore:
         """List all habits in the database."""
         logger.info("Listing all habits in the database.")
         habits = read_json_file(HABIT_STORAGE_JSON_PATH)
+        habits_list = []
         if habits:
             for habit in habits:
                 logger.info(f"Habit: {habit['name']}, Description: {habit['description']}, Frequency: {habit['frequency']}")
+                habits_list.append(habit)
+        return habits_list
 
     def modify_habit(self, updated_habit: dict, value_to_update: str) -> None:
         """Modify an existing habit in the database."""
         self.habit_handler.modify_habit(updated_habit, value_to_update)
 
+    def mark_done(self, habit_name: str) -> None:
+        """Mark a habit as done."""
+        logger.info(f"Marking habit: {habit_name} as done.")
+        habits = read_json_file(HABIT_STORAGE_JSON_PATH)
+        if habits:
+            for habit in habits:
+                if habit["name"] == habit_name:
+                    habit["done"] = True
+                    write_json_file(HABIT_STORAGE_JSON_PATH, habits)
+                    logger.info(f"Habit: {habit_name} marked as done.")
+                    return
+            logger.warning(f"Habit: {habit_name} not found in the database.")
+        else:
+            logger.warning("No habits found in the database.")
+    
+    def clear_habits(self) -> None:
+        """Clear all habits from the database."""
+        self.habit_handler.clear_database()
+
 if __name__ == "__main__":
     habit = HabitCore()
-    # habit.add_habit(name="Playing chess daily", description="I want to play chess daily to reach 1000 ELO", frequency="Daily")
-    # habit.add_habit(name="Reading books", description="Read at least one book per month", frequency="Monthly")
-    # habit.add_habit(name="Morning Exercise", description="Do a 30-minute workout every morning", frequency="Daily")
-    # habit.add_habit(name="Meditation", description="Meditate for 10 minutes every day", frequency="Daily")
+    habit.add_habit(name="Playing chess daily", description="I want to play chess daily to reach 1000 ELO", frequency="Daily")
+    habit.add_habit(name="Reading books", description="Read at least one book per month", frequency="Monthly")
+    habit.add_habit(name="Morning Exercise", description="Do a 30-minute workout every morning", frequency="Daily")
+    habit.add_habit(name="Meditation", description="Meditate for 10 minutes every day", frequency="Daily")
     habit.modify_habit(
         updated_habit={
             "name": "Playing chess weekly",
@@ -110,3 +138,4 @@ if __name__ == "__main__":
         value_to_update="Playing chess daily"
     )
     habit.list_habits()
+    # habit.mark_done("Morning Exercise")
