@@ -1,0 +1,9 @@
+[project]
+name = "habit-tracker"
+version = "2025.0.0"
+dependencies = [
+  "click",
+  "pytest",
+  "sqlite3",
+  "sqlalchemy"
+]

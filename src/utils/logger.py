@@ -7,11 +7,9 @@ from pathlib import Path
 def setup_logger(name: str = None, level: str = "INFO") -> logging.Logger:
     """
     Set up a consistent logger across all modules
-
     Args:
         name: Logger name (usually __name__)
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-
     Returns:
         Configured logger instance
     """
