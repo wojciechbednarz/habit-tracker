@@ -1,15 +1,10 @@
-from typing_extensions import Annotated
+"""Core greeting functionality."""
 from typing import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import sys
-import os
-# Add the project root to Python path to allow imports from src
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-from src.utils.logger import setup_logger
 import click
+from typing_extensions import Annotated
+from src.utils.logger import setup_logger
 
 
 
@@ -51,7 +46,7 @@ def greet(prefix: str, name: Annotated[str, "Name of the person"],
     """Performs greeting using 'name' for a total of 'number' times."""
     try:
         logger.info(f"Greetings {number} times:")
-        for i in range(number):
+        for _ in range(number):
             click.echo(f"Hello {prefix} {name}!")
         greet_instance.last_greeted = greet_instance.timestamp_factory()
         click.echo(greet_instance.last_time_greeted())

@@ -1,14 +1,7 @@
 # core/habit.py
-import os
-import sys
 from sqlite3 import Error as SQLiteError
-from core.db.crud import get_db_connection, execute_query, create_table, fetch_all_results
-
-# Add the project root to Python path to allow imports from src
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
+from typing import Optional
+from src.core.db import get_db_connection, execute_query, create_table, fetch_all_results
 from src.utils.logger import setup_logger
 
 
@@ -51,18 +44,29 @@ class HabitHandler:
         execute_query(self.db_con, "DELETE FROM habits")
         logger.info("Habit database cleared successfully.")
 
-
+    def format_habits(self, habits) -> str:
+        """
+        Changes habits from sqlite3-like objects to human readable format.
+        """
+        habits_display = []
+        for habit_row in habits:
+            status = "✓ Done" if habit_row['done'] else "○ Pending"
+            habit_info = f"• {habit_row['name']} ({habit_row['frequency']}) - {status}\n  {habit_row['description']}"
+            habits_display.append(habit_info)
+        return "\n".join(habits_display)
 
 class HabitCore:
     """Core functionality for managing habits."""
-    def __init__(self):
+    def __init__(self, user_data: Optional[str] = None):
         self.name = ""
         self.description = ""
         self.frequency = ""
         self.done = False
         self.temp_dict_storage = {}
+        self.user_data = user_data
         self.habit_handler = HabitHandler(self.temp_dict_storage)
         self.db_con = get_db_connection(DATABASE_NAME)
+        self.running = True
 
 
     def initialize_database(self) -> None:
@@ -105,16 +109,13 @@ class HabitCore:
     def list_habits(self):
         """List all habits in the database."""
         logger.info("Listing all habits in the database.")
-        # habits = execute_query(self.db_con, "SELECT name, description, frequency, done FROM habits")
         habits = fetch_all_results(self.db_con, "SELECT name, description, frequency, done FROM habits")
-        habits_list = []
         if habits:
-            for habit_row in habits:
-                logger.info(f"Habit: {habit_row['name']}, Description: {habit_row['description']}, Frequency: {habit_row['frequency']}")
-                habits_list.append(habit_row)
+            logger.debug(f"Listing all habits from database.")
+            habits_formatted_to_string = self.habit_handler.format_habits(habits)
+            return habits_formatted_to_string
         else:
             logger.info("Habits list is empty, nothing to be displayed.")
-        return habits_list
 
     def modify_habit(self, updated_habit: dict, value_to_update: str) -> None:
         """Modify an existing habit in the database."""
@@ -139,6 +140,10 @@ class HabitCore:
     def clear_habits(self) -> None:
         """Clear all habits from the database."""
         self.habit_handler.clear_database()
+
+    def display_data(self):
+        "Displays user data from database"
+        return f"User data: {self.user_data}"
 
 if __name__ == "__main__":
     habit = HabitCore()

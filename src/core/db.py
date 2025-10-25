@@ -1,14 +1,7 @@
-import os
-import sys
+"""Database interaction module."""
 import sqlite3
 from sqlite3 import Connection, Cursor
 from typing import Optional, Tuple, Any
-
-# Add the project root to Python path to allow imports from src
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
