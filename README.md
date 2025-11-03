@@ -1,57 +1,116 @@
 # Habit Tracker
 
-A simple and effective tool for building and maintaining healthy habits. Track your daily routines, monitor your progress, and stay motivated on your journey to personal improvement.
+A command-line application for tracking daily habits with SQLite persistence.
 
 ## Features
 
-- ✅ Add custom habits with personalized goals
-- 📊 Track daily progress and completion rates
-- 📈 Visualize your habit streaks and patterns
-- 🎯 Set reminders and notifications
-- 📱 Simple and intuitive interface
-- 💾 Persistent data storage
+- Add and manage habits with custom descriptions and frequencies
+- Mark habits as complete
+- Track habit completion status
+- Per-user habit tracking
+- Interactive and command-line modes
+- SQLite database for persistent storage
+
+## Requirements
+
+- Python 3.8+
+- click
+- pytest
 
 ## Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/wojciechbednarz/habit-tracker.git
-
-# Navigate to the project directory
 cd habit-tracker
-
-# Install dependencies (when available)
-# npm install  # for Node.js projects
-# pip install -r requirements.txt  # for Python projects
+pip install -e .
 ```
 
 ## Usage
 
+### Interactive Mode
+
 ```bash
-# Start the habit tracker
-# Instructions will be added as the project develops
+python -m src.main interactive
 ```
 
-## Getting Started
+Available commands in interactive mode:
+- `add` - Add a new habit with name, description, and frequency
+- `complete` - Mark a habit as complete
+- `list` - Display all habits
+- `data` - Display habit data
+- `quit` - Exit interactive mode
 
-1. Clone this repository
-2. Follow the installation instructions above
-3. Start tracking your habits!
+### Command-Line Mode
+
+```bash
+# Add a habit
+python -m src.main add "Morning Exercise"
+
+# Mark a habit as complete
+python -m src.main complete "Morning Exercise"
+
+# List all habits
+python -m src.main list-all
+
+# Specify user (default: "default")
+python -m src.main --user john interactive
+```
+
+### Additional Commands
+
+```bash
+# Greeting command
+python -m src.main greet --name John --prefix Mr --number 3
+```
+
+## Project Structure
+
+```
+habit-tracker/
+├── src/
+│   ├── cli/
+│   │   └── commands.py      # Click CLI commands
+│   ├── core/
+│   │   ├── db/
+│   │   │   └── crud.py      # Database operations
+│   │   ├── greet.py         # Greeting functionality
+│   │   └── habit.py         # Core habit logic
+│   ├── utils/
+│   │   ├── helpers.py       # Utility functions
+│   │   └── logger.py        # Logging configuration
+│   └── main.py              # Application entry point
+├── tests/
+│   └── test_habit_handler.py
+├── conftest.py
+└── pyproject.toml
+```
+
+## Development
+
+### Running Tests
+
+```bash
+pytest
+```
+
+### Database
+
+The application uses SQLite database (`habit_tracker.db`) stored in the project root. The database is created automatically on first run.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -m 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
 5. Open a Pull Request
 
 ## License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is open source and available under the MIT License.
 
-## Contact
+## Author
+
+Wojciech Bednarz
 
 Project Link: [https://github.com/wojciechbednarz/habit-tracker](https://github.com/wojciechbednarz/habit-tracker)
