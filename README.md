@@ -63,6 +63,11 @@ python -m src.main --user john interactive
 python -m src.main greet --name John --prefix Mr --number 3
 ```
 
+```bash
+# Running the file from root
+python -m src.core.habit
+```
+
 ## Project Structure
 
 ```

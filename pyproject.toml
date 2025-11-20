@@ -1,9 +1,74 @@
 [project]
 name = "habit-tracker"
-version = "2025.0.0"
+version = "0.1.0"
+description = "Habit tracking project which helps in setting up, managing an tracking your daily habits and routines"
+authors = [{name = "Wojciech Bednarz"}]
+readme = "README.md"
+requires-python = ">=3.13"
 dependencies = [
-  "click",
-  "pytest",
-  "sqlite3",
-  "sqlalchemy"
+    "aiosqlite>=0.21.0",
+    "click>=8.3.0",
+    "fastapi>=0.121.1",
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.2",
+    "python-dateutil>=2.9.0.post0",
+    "ruff>=0.14.4",
+    "sqlalchemy>=2.0.44",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "mypy>=1.8.0",
+    "ruff>=0.7.0",
+    "pre-commit>=3.6.0",
+]
+
+[tool-ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = [
+    "--cov=habit_tracker",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--verbose"
+]
+
+[tool.pylint.messages.control]
+disable = ["logging-fstring-interpolation"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.2",
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.4",
 ]

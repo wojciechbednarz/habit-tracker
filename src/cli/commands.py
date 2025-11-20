@@ -1,8 +1,8 @@
 # click commands for setting up habits
+import click
 from src.utils.logger import setup_logger
 from src.core.habit import HabitCore
 from src.core.greet import greet
-import click
 
 
 logger = setup_logger(__name__)
@@ -43,7 +43,7 @@ def interactive(ctx):
 
         elif command == "list":
             click.echo("\n")
-            click.echo(tracker.list_habits())
+            click.echo(tracker.list_habits_as_string())
 
         elif command == "data":
             click.echo(tracker.display_data())
@@ -58,11 +58,13 @@ def interactive(ctx):
 
 @cli.command()
 @click.argument("habit_name")
+@click.argument("habit_description")
+@click.argument("habit_frequency")
 @click.pass_context
-def add(ctx, habit_name):
+def add(ctx, habit_name, habit_description, habit_frequency):
     """Add a new habit"""
     tracker = ctx.obj["tracker"]
-    click.echo(tracker.add_habit(habit_name))
+    click.echo(tracker.add_habit(habit_name, habit_description, habit_frequency))
 
 
 @cli.command()
@@ -79,7 +81,7 @@ def complete(ctx, habit_name):
 def list_all(ctx):
     """List all habits"""
     tracker = ctx.obj["tracker"]
-    click.echo(tracker.list_habits())
+    click.echo(tracker.list_habits_as_string())
 
 
 cli.add_command(greet)

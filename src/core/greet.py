@@ -1,11 +1,11 @@
 """Core greeting functionality."""
+
 from typing import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import click
 from typing_extensions import Annotated
 from src.utils.logger import setup_logger
-
 
 
 logger = setup_logger(__name__)
@@ -15,6 +15,7 @@ logger = setup_logger(__name__)
 class TimestampFactory:
     """Timestamp factory, injects a clock for testability.
     Default: datetime.now(timezone.utc)"""
+
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
 
     def __call__(self) -> datetime:
@@ -26,6 +27,7 @@ class TimestampFactory:
             dt = dt.astimezone(timezone.utc)
         return dt
 
+
 class Greet:
     def __init__(self):
         self.timestamp_factory = TimestampFactory()
@@ -34,6 +36,7 @@ class Greet:
     def last_time_greeted(self):
         logger.info(f"Last time you was greeted: {self.last_greeted}")
 
+
 greet_instance = Greet()
 
 
@@ -41,8 +44,11 @@ greet_instance = Greet()
 @click.option("--name", prompt="Your name", help="The person to greet")
 @click.option("--prefix", prompt="Your prefix", help="Mr/Mrs/Ms")
 @click.option("--number", default=1, help="Number of greetings")
-def greet(prefix: str, name: Annotated[str, "Name of the person"],
-        number: Annotated[int, "Number of greetings"]) -> None:
+def greet(
+    prefix: str,
+    name: Annotated[str, "Name of the person"],
+    number: Annotated[int, "Number of greetings"],
+) -> None:
     """Performs greeting using 'name' for a total of 'number' times."""
     try:
         logger.info(f"Greetings {number} times:")
@@ -56,6 +62,3 @@ def greet(prefix: str, name: Annotated[str, "Name of the person"],
 
 if __name__ == "__main__":
     greet()
-    
-
-    
