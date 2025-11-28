@@ -7,13 +7,14 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.21.0",
+    "alembic>=1.17.2",
     "click>=8.3.0",
     "fastapi>=0.121.1",
     "pre-commit>=4.3.0",
     "pytest>=8.4.2",
     "python-dateutil>=2.9.0.post0",
     "ruff>=0.14.4",
-    "sqlalchemy>=2.0.44",
+    "sqlalchemy[mypy]>=2.0.44",
 ]
 
 [project.optional-dependencies]
@@ -61,8 +62,14 @@ addopts = [
     "--verbose"
 ]
 
+[tool.pylint.master]
+extension-pkg-whitelist = ["sqlalchemy"]
+
+[tool.pylint.typecheck]
+generated-members = ["sqlalchemy.*"]
+
 [tool.pylint.messages.control]
-disable = ["logging-fstring-interpolation"]
+disable = ["logging-fstring-interpolation", "import-error"]
 
 [dependency-groups]
 dev = [

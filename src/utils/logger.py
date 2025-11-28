@@ -1,10 +1,12 @@
+"""Utility module for setting up a consistent logger across all modules."""
+
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 
 
-def setup_logger(name: str = None, level: str = "INFO") -> logging.Logger:
+def setup_logger(name: str = "", level: int | str = logging.INFO) -> logging.Logger:
     """
     Set up a consistent logger across all modules
     Args:
@@ -17,7 +19,10 @@ def setup_logger(name: str = None, level: str = "INFO") -> logging.Logger:
 
     if logger.handlers:
         return logger
-    logger.setLevel(getattr(logging, level.upper()))
+    if isinstance(level, str):
+        logger.setLevel(getattr(logging, level.upper()))
+    else:
+        logger.setLevel(level)
     formatter = logging.Formatter(
         fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",

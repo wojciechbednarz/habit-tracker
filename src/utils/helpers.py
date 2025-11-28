@@ -1,8 +1,9 @@
 """Helper functions for habit tracking application."""
 
 import json
-from src.utils.logger import setup_logger
+from typing import Any
 
+from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -11,7 +12,7 @@ def check_if_key_exists_in_json(file_name: str, value_related_to_habit: str) -> 
     """Check if a specific key exists in a JSON file."""
     logger.debug(f"Checking if value exists in the file: {file_name}")
     try:
-        with open(file_name, "r", encoding="utf-8") as f:
+        with open(file_name, encoding="utf-8") as f:
             loaded_json = json.load(f)
         if loaded_json is None:
             return False
@@ -20,7 +21,8 @@ def check_if_key_exists_in_json(file_name: str, value_related_to_habit: str) -> 
                 for _, loaded_value in list_value.items():
                     if loaded_value == value_related_to_habit:
                         logger.debug(
-                            f"Loaded key: {loaded_value} is the same as provided one: {value_related_to_habit}"
+                            f"Loaded key: {loaded_value} is the same as provided one: "
+                            f"{value_related_to_habit}"
                         )
                         return True
         return False
@@ -34,24 +36,24 @@ def check_if_key_exists_in_json(file_name: str, value_related_to_habit: str) -> 
         return False
 
 
-def read_json_file(file_name: str):
+def read_json_file(file_name: str) -> Any:
     """Read and return the contents of a JSON file."""
     try:
-        with open(file_name, "r", encoding="utf-8") as f:
+        with open(file_name, encoding="utf-8") as f:
             data = json.load(f)
         logger.info(f"Successfully read JSON file: {file_name}")
         return data
     except FileNotFoundError as e:
         logger.error(f"File {file_name} not found, error: {e}")
-        return None
+        return {}
     except ValueError as e:
         logger.error(
             f"There was an error during loading json file {file_name}, error: {e}"
         )
-        return None
+        return {}
 
 
-def write_json_file(file_name: str, data) -> None:
+def write_json_file(file_name: str, data: Any) -> None:
     """Write data to a JSON file."""
     try:
         with open(file_name, "w", encoding="utf-8") as f:
@@ -63,11 +65,15 @@ def write_json_file(file_name: str, data) -> None:
         )
 
 
-def modify_json_file(file_name: str, updated_data: dict, value_to_update: str) -> None:
+def modify_json_file(
+    file_name: str,
+    updated_data: dict[Any, Any] | list[Any] | None,
+    value_to_update: str,
+) -> None:
     """Modify an existing JSON file with updated data."""
     try:
         existing_data = read_json_file(file_name)
-        if existing_data is None:
+        if not existing_data:
             logger.error(
                 f"Cannot modify JSON file: {file_name} because it could not be read."
             )
@@ -100,3 +106,8 @@ def initialize_json_file(file_name: str) -> None:
         logger.error(
             f"An error occurred while initializing JSON file: {file_name}, error: {e}"
         )
+
+
+def normalize_habit_name(habit_name: str) -> str:
+    """Normalize habit name by stripping leading and trailing whitespace."""
+    return habit_name.strip()

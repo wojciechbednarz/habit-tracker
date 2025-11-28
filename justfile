@@ -11,23 +11,23 @@ install:
 
 # Format code
 fmt:
-    ruff format .
+    uv run ruff format .
 
 # Lint code
 lint:
-    ruff check .
+    uv run ruff check .
 
 # Type check
 typecheck:
-    mypy src/
+    uv run mypy src/
 
 # Run tests
 test:
-    pytest
+    uv run pytest
 
 # Run tests with coverage
 test-cov:
-    pytest --cov=habit_tracker --cov-report=html --cov-report=term
+    uv run pytest --cov=habit_tracker --cov-report=html --cov-report=term
 
 # Run all checks (lint, typecheck, test)
 check: lint typecheck test
@@ -39,8 +39,12 @@ clean:
 
 # Install pre-commit hooks
 hooks:
-    pre-commit install
+    uv run pre-commit install
 
 # Run pre-commit on all files
 pre-commit-all:
-    pre-commit run --all-files
+    uv run pre-commit run --all-files
+
+# Run the habit tracker
+run:
+    uv run python -m src.core.habit

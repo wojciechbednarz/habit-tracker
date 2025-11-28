@@ -141,3 +141,5 @@ Desktop.ini
 logs/
 *.log
 habit_storage.json
+habits.db
+*.lock

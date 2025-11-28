@@ -1,8 +1,16 @@
-""" This class handles all of the actions related to habits like: adding habit, modifying it, displaying habits etc. """
-from pydantic import BaseModel, Field
-from sqlite3 import Error as SQLiteError
-from typing import Optional, List
-from src.core.db import HabitDatabase
+"""
+This class handles all of the actions related to habits like: adding habit,
+modifying it, displaying habits etc.
+"""
+
+from collections.abc import Sequence
+from typing import Any, overload
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from src.core.db import HabitBase, HabitDatabase, UserBase
+from src.utils.helpers import normalize_habit_name
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -10,225 +18,337 @@ logger = setup_logger(__name__)
 DATABASE_NAME = "habit_tracker.db"
 
 
-class HabitData(BaseModel):
+class HabitHistory(Sequence[HabitBase]):
+    """To be used in future to store habit history e.g. how many completions
+    it was for given habit and in which days.
+    """
+
+    def __init__(self, *habits: HabitBase) -> None:
+        self._habits = list(habits)
+
+    def __len__(self) -> int:
+        return len(self._habits)
+
+    @overload
+    def __getitem__(self, item: int) -> HabitBase: ...
+    @overload
+    def __getitem__(self, item: slice) -> Sequence[HabitBase]: ...
+    def __getitem__(self, item: int | slice) -> HabitBase | Sequence[HabitBase]:
+        return self._habits[item]
+
+
+class HabitCreate(BaseModel):
+    """Schema for creating a new habit"""
+
+    name: str = Field(..., min_length=1, max_length=30)
+    description: str = Field(..., max_length=255)
+    frequency: str = Field(
+        ..., min_length=1, max_length=20, pattern="^(daily|weekly|monthly)$"
+    )
+    mark_done: bool = Field(default=False)
+    user_id: UUID = Field(...)
+
+    @field_validator("name", "description")
+    @classmethod
+    def strip_whitespace(cls, v: str) -> str:
+        """Remove leading/trailing whitespace."""
+        return v.strip()
+
+
+class HabitUpdate(BaseModel):
     """Pydantic class describing types of the habit data"""
 
-    habit_name: str = Field(min_length=1, max_length=30, default="Default Habit Name")
-    habit_description: str = Field(max_length=255, default="Default Habit Description")
-    habit_frequency: str = Field(min_length=1, max_length=20, default="daily")
-    habit_done: bool = Field(default=False)
+    name: str | None = Field(None, min_length=1, max_length=30)
+    description: str | None = Field(None, max_length=255)
+    frequency: str | None = Field(
+        None, min_length=1, max_length=20, pattern="^(daily|weekly|monthly)$"
+    )
+    mark_done: bool | None = None
+
+    @field_validator("name", "description")
+    @classmethod
+    def strip_whitespace(cls, v: str) -> str | None:
+        """Remove leading/trailing whitespace."""
+        if v is not None:
+            return v.strip()
+        return v
 
 
-class HabitHandler:
-    """Handle habit-related operations."""
+class HabitResponse(BaseModel):
+    """Schema for habit response."""
 
-    def __init__(self, habit_data: dict):
-        self.habit_data = habit_data
-        self.db = HabitDatabase()
+    id: str
+    name: str
+    description: str
+    frequency: str
+    mark_done: bool
+    created_at: str
 
-    def check_if_habit_exists_in_db(self) -> bool:
-        """Check if habit already exists in the database."""
-        logger.info(
-            f"Checking if habit: {self.habit_data['name']} exists in the database."
-        )
-        try:
-            habit_check = self.db.check_if_habit_exists_in_db(self.habit_data["name"])
-        except SQLiteError as e:
-            logger.error(f"An error occurred while checking habit existence: {e}")
-            habit_check = False
-        return habit_check
-
-    def modify_habit(self, updated_habit: dict, value_to_update: str) -> None:
-        """Modify an existing habit in the database."""
-        logger.info(f"Modifying habit: {value_to_update} in the database.")
-        try:
-            self.db.execute_query(
-                "UPDATE habits SET name = ?, description = ?, frequency = ?, done = ? WHERE name = ?",
-                (
-                    updated_habit["name"],
-                    updated_habit["description"],
-                    updated_habit["frequency"],
-                    int(updated_habit.get("done", False)),
-                    value_to_update,
-                ),
-            )
-        except SQLiteError as e:
-            logger.error(
-                f"An error occurred while modifying habit: {value_to_update}, error: {e}"
-            )
-
-    def clear_database(self) -> None:
-        """Clear the habit database."""
-        logger.info("Clearing the habit database.")
-        self.db.execute_query("DELETE FROM habits")
-        logger.info("Habit database cleared successfully.")
-
-    def format_habits_to_str(self, habits) -> str:
-        """
-        Changes habits from SQL-like objects to human readable string format.
-        """
-        logger.debug("Formatting habits to human readable format.")
-        try:
-            habits_display = []
-            for habit_row in habits:
-                status = "✓ Done" if habit_row.mark_done else "○ Pending"
-                habit_info = f"• {habit_row.name} ({habit_row.frequency}) - {status}\n  {habit_row.description}"
-                habits_display.append(habit_info)
-            return "\n".join(habits_display)
-        except AttributeError as err:
-            logger.error(
-                f"Error accessing habit attributes. "
-                f"Expected HabitBase object with attributes (name, mark_done, frequency, description). "
-                f"Error: {err}",
-                exc_info=True
-            )
-        except TypeError as err:
-            logger.error(
-                f"Error processing habit data. "
-                f"Expected iterable of HabitBase objects. "
-                f"Error: {err}",
-                exc_info=True
-            )
-
-    def format_habits_to_dict(self, habits) -> List[dict]:
-        """
-        Changes habits from SQL-like objects to dictionary format.
-        """
-        logger.debug("Formatting habits to dictionary format.")
-        list_with_habits = []
-        for habit in habits:
-            habit_formatted_to_dict = {
-                "name": habit.name, "description": habit.description, "frequency": habit.frequency, "mark_done": habit.mark_done}
-            list_with_habits.append(habit_formatted_to_dict)
-        return list_with_habits
+    model_config = ConfigDict(from_attributes=True)
 
 
-class HabitCore:
-    """Core functionality for managing habits."""
+class HabitService:
+    """Service layer for habit operations - handles business logic."""
 
-    def __init__(self, user_data: Optional[str] = None):
-        self.name = ""
-        self.description = ""
-        self.frequency = ""
-        self.habit_done = False
-        self.habit_data: HabitData = {}
-        self.user_data = user_data
-        self.habit_handler = HabitHandler(self.habit_data)
-        self.db = HabitDatabase()
+    def __init__(self, db_path: str | None = None) -> None:
+        """Initialize habit service with database connection."""
+        self.db = HabitDatabase(db_url=db_path) if db_path else HabitDatabase()
         self.db.init_db_sync()
+
+    def create_habit(self, habit_data: HabitCreate) -> HabitBase:
+        """
+        Create a new habit.
+        Args:
+            habit_data: Validated habit creation data
+        Returns:
+            Created habit object
+        Raises:
+            ValueError: If habit already exists
+        """
+        logger.info(f"Creating habit: {habit_data.name} to database.")
+        if self.db.check_if_habit_exists_in_db(habit_data.name, habit_data.user_id):
+            logger.warning(f"Habit: {habit_data.name} already exists.")
+            raise ValueError(f"Habit: {habit_data.name} already exists.")
+        habit = self.db.add_habit_to_db(
+            name=habit_data.name,
+            description=habit_data.description,
+            frequency=habit_data.frequency,
+            mark_done=habit_data.mark_done,
+            user_id=habit_data.user_id,
+        )
+        logger.info(f"Habit: {habit_data.name} added successfully.")
+        return habit
+
+    def get_all_habits(self, user_id: UUID) -> list[HabitBase]:
+        """
+        Get all habits from database.
+        Returns:
+            List of habit objects
+        """
+        logger.info("Fetching all habits")
+        habits = self.db.fetch_all_habit_results(user_id)
+        logger.debug(f"Found {len(habits)} habits")
+        return habits
+
+    def update_habit(
+        self, habit_name: str, updates: HabitUpdate, user_id: UUID
+    ) -> None:
+        """
+        Update an existing habit.
+        Args:
+            habit_name: Name of habit to update
+            updates: Fields to update
+        Raises:
+            ValueError: If habit not found
+        """
+        logger.info(f"Updating habit: {habit_name}")
+        if not self.db.check_if_habit_exists_in_db(habit_name, user_id):
+            raise ValueError(f"Habit with name: '{habit_name}' not found.")
+        update_data = updates.model_dump(exclude_none=True)
+        if not update_data:
+            logger.warning("No fields to update.")
+            return
+        self.db.update_habit(habit_name, update_data, user_id)
+        logger.info(f"Habit '{habit_name}' updated successfully")
+
+    def mark_habit_done(self, habit_name: str, user_id: UUID) -> None:
+        """
+        Mark a habit as completed.
+        Args:
+            habit_name: Name of habit to mark as done
+        Raises:
+            ValueError: If habit not found
+        """
+        logger.info(f"Marking habit '{habit_name}' as done")
+        if not self.db.check_if_habit_exists_in_db(habit_name, user_id):
+            raise ValueError(f"Habit '{habit_name}' not found")
+        self.db.mark_habit_as_done(habit_name, user_id)
+        logger.info(f"Habit '{habit_name}' marked as done")
+
+    def delete_all_habits(self) -> None:
+        """Delete all habits from the database."""
+        logger.warning("Deleting all habits")
+        self.db.execute_query("DELETE FROM habits")
+        logger.info("All habits deleted")
+
+
+class HabitFormatter:
+    """Formatter for habit display - handles presentation logic."""
+
+    @staticmethod
+    def format_as_string(habits: list[HabitBase]) -> str:
+        """
+        Format habits as human-readable string.
+        Args:
+            habits: List of habit objects
+        Returns:
+            Formatted string representation
+        """
+        if not habits:
+            return "No habits found."
+        logger.debug(f"Formatting {len(habits)} habits as string")
+        habits_display = []
+        for habit in habits:
+            status = "✓ Done" if habit.mark_done else "○ Pending"
+            habit_info = (
+                f"• {habit.name} ({habit.frequency}) - {status}\n  {habit.description}"
+            )
+            habits_display.append(habit_info)
+        return "\n\n".join(habits_display)
+
+    @staticmethod
+    def format_as_dict_list(habits: list[HabitBase]) -> list[dict[str, Any]]:
+        """
+        Format habits as list of dictionaries.
+        Args:
+            habits: List of habit objects
+        Returns:
+            List of habit dictionaries
+        """
+        logger.debug(f"Formatting {len(habits)} habits as dict list")
+        return [
+            {
+                "id": str(habit.id),
+                "name": habit.name,
+                "description": habit.description,
+                "frequency": habit.frequency,
+                "mark_done": habit.mark_done,
+                "created_at": habit.created_at.isoformat()
+                if habit.created_at
+                else None,
+            }
+            for habit in habits
+        ]
+
+    @staticmethod
+    def format_as_table(habits: list[HabitBase]) -> str:
+        """
+        Format habits as ASCII table.
+        Args:
+            habits: List of habit objects
+        Returns:
+            Table string representation
+        """
+        if not habits:
+            return "No habits found."
+        header = f"{'Name':<20} {'Frequency':<10} {'Status':<10}"
+        separator = "-" * 40
+        rows = [header, separator]
+        for habit in habits:
+            status = "Done" if habit.mark_done else "Pending"
+            row = f"{habit.name:<20} {habit.frequency:<10} {status:<10}"
+            rows.append(row)
+        return "\n".join(rows)
+
+
+class HabitManager:
+    """
+    High-level interface for habit management.
+    Combines service and formatter for easy use.
+    """
+
+    def __init__(self, db_path: str | None = None) -> None:
+        """Initialize habit manager."""
+        self.service = HabitService(db_path=db_path)
+        self.formatter = HabitFormatter()
         self.running = True
 
-    def _prepare_habit_data(self) -> None:
-        """Create a temporary dictionary to store habit details."""
-        self.habit_data["name"] = self.name
-        self.habit_data["description"] = self.description
-        self.habit_data["frequency"] = self.frequency
-        self.habit_data["done"] = self.mark_done
-        logger.debug(f"Created habit data: {self.habit_data}")
-
     def add_habit(
-        self, name: str, description: str, frequency: str, done: bool = False
+        self,
+        habit_name: str,
+        description: str,
+        frequency: str,
+        user_id: UUID,
+        mark_done: bool = False,
+    ) -> HabitBase:
+        """Add a new habit."""
+        normalized_habit_name = normalize_habit_name(habit_name)
+        habit_data = HabitCreate(
+            name=normalized_habit_name,
+            description=description,
+            frequency=frequency,
+            mark_done=mark_done,
+            user_id=user_id,
+        )
+        return self.service.create_habit(habit_data)
+
+    def update_habit(
+        self, habit_name: str, updates: dict[str, Any], user_id: UUID
     ) -> None:
-        """Add a new habit to the database Example: add_habit("Exercise", "30 minutes of exercise", "daily").
-        Args:
-            name (str): Name of the habit.
-            description (str): Description of the habit.
-            frequency (str): Frequency of the habit.
-            done (bool): Whether the habit is done or not. Defaults to False.
-        Returns:
-            None
-        """
-        self.name = name
-        self.description = description
-        self.frequency = frequency
-        self.habit_done = done
-        logger.debug(f"Adding habit: {self.name} to database.")
-        self._prepare_habit_data()
-        if self.habit_handler.check_if_habit_exists_in_db():
-            logger.warning(f"Habit: {self.name} already exists in the database.")
-            return
-        self.db.add_habit_to_db(
-            self.name, self.description, self.frequency, self.habit_done
-        )
-        logger.info(f"Habit: {self.name} added successfully.")
+        """Updates specific value relate to the habit"""
+        normalized_habit_name = normalize_habit_name(habit_name)
+        update_model = HabitUpdate(**updates)
+        self.service.update_habit(normalized_habit_name, update_model, user_id)
 
-    def list_habits_as_string(self) -> str:
-        """List all habits in the database. Example: list_habits_as_string().
-        Returns:
-            str: Formatted string of all habits.
-        """
-        logger.info("Listing all habits in the form of string from the database.")
-        habits = self.db.fetch_all_habit_results()
-        if habits:
-            habits_formatted_to_string = self.habit_handler.format_habits_to_str(habits)
-            return habits_formatted_to_string
-        else:
-            logger.debug("Habits list is empty, nothing to be displayed.")
+    def complete_habit(self, habit_name: str, user_id: UUID) -> None:
+        """Mark a habit as completed."""
+        normalized_habit_name = normalize_habit_name(habit_name)
+        self.service.mark_habit_done(normalized_habit_name, user_id)
 
-    def list_habits_as_dict(self) -> dict:
-        """List all habits in the database. Example: list_habits_as_dict().
-        Returns:
-            dict: Formatted string of all habits.
-        """
-        logger.info("Listing all habits in the form of dictionary from the database")
-        habits = self.db.fetch_all_habit_results()
-        logger.info(f"\nDEBUG\nAll habits: {habits}, \ntype: {type(habits)}")
-        if habits:
-            habit_list_with_habits_as_dicts = self.habit_handler.format_habits_to_dict(habits)
-            return habit_list_with_habits_as_dicts
-        else:
-            logger.debug("Habits list is empty, nothing to be displayed.")
+    def clear_all_habits(self) -> None:
+        """Delete all habits."""
+        self.service.delete_all_habits()
 
-    def modify_habit(self, updated_habit: dict, value_to_update: str) -> None:
-        """Modify an existing habit in the database.
-        Example: modify_habit({"name": "Exercise", "description": "45 minutes of exercise", "frequency": "daily"},
-        value_to_update="Exercise").
-        Args:
-            updated_habit (dict): Dictionary containing updated habit details.
-            value_to_update (str): Name of the habit to be updated.
-        Returns:
-            None
-        """
-        logger.debug(
-            f"Modifying habit: {value_to_update} with new data: {updated_habit}."
-        )
-        self.habit_handler.modify_habit(updated_habit, value_to_update)
+    def list_habits(self, user_id: UUID) -> str:
+        """Get all habits for a specific user based on username"""
+        habits = self.service.get_all_habits(user_id)
+        return self.formatter.format_as_string(habits)
 
-    def mark_done(self, habit_name: str) -> None:
-        """Mark a habit as done. Example: mark_done("Exercise").
-        Args:
-            habit_name (str): Name of the habit to be marked as done.
-        Returns:
-            None
-        """
-        logger.info(f"Marking habit: {habit_name} as done.")
-        habits = self.db.fetch_all_habit_results()
-        if habits:
-            for habit in habits:
-                if habit["name"] == habit_name:
-                    self.db.execute_query(
-                        "UPDATE habits SET done = ? WHERE name = ?", (1, habit_name)
-                    )
-                    logger.info(f"Habit: {habit_name} marked as done.")
-                    return
-            logger.warning(f"Habit: {habit_name} not found in the database.")
-        else:
-            logger.warning("No habits found in the database.")
 
-    def clear_habits(self) -> None:
-        """Clear all habits from the database."""
-        self.habit_handler.clear_database()
+class UserService:
+    """Service layer for user operations - handles business logic."""
 
-    def display_data(self):
-        """Displays user data from database.
-        Returns:
-            str: Formatted string of user data.
-        """
-        return f"User data: {self.user_data}"
+    def __init__(self, db_path: str | None = None) -> None:
+        """Initialize user service with database connection."""
+        self.db = HabitDatabase(db_url=db_path) if db_path else HabitDatabase()
+        self.formatter = HabitFormatter()
+        self.db.init_db_sync()
+
+    def add_user(self, user_name: str, email_address: str, nickname: str) -> UserBase:
+        """Create a new user."""
+        logger.info(f"Creating user: {user_name} to database.")
+        user = self.db.create_new_user(user_name, email_address, nickname)
+        logger.info(f"User: {user_name} added successfully.")
+        return user
+
+
+class UserManager:
+    """High-level interface for user management."""
+
+    def __init__(self, db_path: str | None = None) -> None:
+        """Initialize user manager."""
+        self.user_service = UserService(db_path=db_path)
+
+    def create_user(
+        self, user_name: str, email_address: str, nickname: str
+    ) -> UserBase:
+        """Creates a user"""
+        return self.user_service.add_user(user_name, email_address, nickname)
 
 
 if __name__ == "__main__":
-    habit_core = HabitCore()
-    habits_as_dict = habit_core.list_habits_as_dict()
-    print(habits_as_dict)
-    # habit_core.db.fetch_all_results()
+    manager = HabitManager()
+    user_manager = UserManager()
+
+    user = user_manager.create_user(
+        user_name="wojslaw", email_address="wojslaw@example.com", nickname="woj"
+    )
+    user_id = user.user_id
+
+    try:
+        manager.add_habit(
+            habit_name="Exercise",
+            description="Morning workout",
+            frequency="daily",
+            user_id=user_id,
+        )
+        manager.update_habit(
+            habit_name="Exercise", updates={"frequency": "weekly"}, user_id=user_id
+        )
+    except ValueError as e:
+        print(f"Error: {e}")
+
+    manager.clear_all_habits()
+    habits = manager.list_habits(user_id)
+
+    print(f"List of habits: {habits}, type: {type(habits)}")

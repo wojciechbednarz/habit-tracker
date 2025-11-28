@@ -1,17 +1,29 @@
 repos:
+  # Ruff for linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.4
+    rev: v0.8.4
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
+  # MyPy for type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
+        additional_dependencies:
+          - pydantic>=2.0
+          - sqlalchemy>=2.0
+          - types-click
+          - aiosqlite
+        args:
+          - --python-version=3.13
+          - --ignore-missing-imports
+          - --no-strict-optional
+        files: ^src/
 
+  # Pre-commit hooks for basic checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -19,14 +31,19 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+        args: [--maxkb=1000]
       - id: check-merge-conflict
       - id: debug-statements
+      - id: check-toml
+      - id: check-json
 
+  # Pytest - Run tests before commit
   - repo: local
     hooks:
       - id: pytest
         name: pytest
-        entry: pytest
+        entry: uv run pytest
         language: system
         pass_filenames: false
         always_run: true
+        stages: [commit]

@@ -3,7 +3,7 @@
 from src.cli.commands import cli
 
 
-def main():
+def main() -> None:
     """Main entry point for the application."""
     cli()
 
