@@ -1,15 +1,22 @@
 """
-This class handles all of the actions related to habits like: adding habit,
-modifying it, displaying habits etc.
+DEPRECATED: Synchronous habit management classes.
+
+This module contains synchronous implementations kept for backward compatibility
+with CLI commands. New code should use:
+- AsyncHabitService from habit_async.py (with repository pattern)
+- AsyncHabitManager from habit_async.py
+- AsyncUserService from habit_async.py
+- AsyncUserManager from habit_async.py
+
+Main usage: Legacy CLI click commands only.
 """
 
-from collections.abc import Sequence
-from typing import Any, overload
+from typing import Any, cast
 from uuid import UUID
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from warnings import warn
 
 from src.core.db import HabitBase, HabitDatabase, UserBase
+from src.core.schemas import HabitCreate, HabitUpdate
 from src.utils.helpers import normalize_habit_name
 from src.utils.logger import setup_logger
 
@@ -18,121 +25,59 @@ logger = setup_logger(__name__)
 DATABASE_NAME = "habit_tracker.db"
 
 
-class HabitHistory(Sequence[HabitBase]):
-    """To be used in future to store habit history e.g. how many completions
-    it was for given habit and in which days.
-    """
-
-    def __init__(self, *habits: HabitBase) -> None:
-        self._habits = list(habits)
-
-    def __len__(self) -> int:
-        return len(self._habits)
-
-    @overload
-    def __getitem__(self, item: int) -> HabitBase: ...
-    @overload
-    def __getitem__(self, item: slice) -> Sequence[HabitBase]: ...
-    def __getitem__(self, item: int | slice) -> HabitBase | Sequence[HabitBase]:
-        return self._habits[item]
-
-
-class HabitCreate(BaseModel):
-    """Schema for creating a new habit"""
-
-    name: str = Field(..., min_length=1, max_length=30)
-    description: str = Field(..., max_length=255)
-    frequency: str = Field(
-        ..., min_length=1, max_length=20, pattern="^(daily|weekly|monthly)$"
-    )
-    mark_done: bool = Field(default=False)
-    user_id: UUID = Field(...)
-
-    @field_validator("name", "description")
-    @classmethod
-    def strip_whitespace(cls, v: str) -> str:
-        """Remove leading/trailing whitespace."""
-        return v.strip()
-
-
-class HabitUpdate(BaseModel):
-    """Pydantic class describing types of the habit data"""
-
-    name: str | None = Field(None, min_length=1, max_length=30)
-    description: str | None = Field(None, max_length=255)
-    frequency: str | None = Field(
-        None, min_length=1, max_length=20, pattern="^(daily|weekly|monthly)$"
-    )
-    mark_done: bool | None = None
-
-    @field_validator("name", "description")
-    @classmethod
-    def strip_whitespace(cls, v: str) -> str | None:
-        """Remove leading/trailing whitespace."""
-        if v is not None:
-            return v.strip()
-        return v
-
-
-class HabitResponse(BaseModel):
-    """Schema for habit response."""
-
-    id: str
-    name: str
-    description: str
-    frequency: str
-    mark_done: bool
-    created_at: str
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class HabitService:
-    """Service layer for habit operations - handles business logic."""
+    """Service layer for habit operations - handles business logic.
+    DEPRECATED: Use AsyncHabitService from habit_async.py instead.
+    """
 
     def __init__(self, db_path: str | None = None) -> None:
         """Initialize habit service with database connection."""
+        warn(
+            "HabitService is deprecated. Use AsyncHabitService from habit_async.py",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.db = HabitDatabase(db_url=db_path) if db_path else HabitDatabase()
-        self.db.init_db_sync()
 
-    def create_habit(self, habit_data: HabitCreate) -> HabitBase:
+    def create_habit(self, habit_data: HabitCreate, email: str) -> HabitBase:
         """
         Create a new habit.
         Args:
             habit_data: Validated habit creation data
+            email: User's email address
         Returns:
             Created habit object
         Raises:
             ValueError: If habit already exists
         """
         logger.info(f"Creating habit: {habit_data.name} to database.")
-        if self.db.check_if_habit_exists_in_db(habit_data.name, habit_data.user_id):
-            logger.warning(f"Habit: {habit_data.name} already exists.")
-            raise ValueError(f"Habit: {habit_data.name} already exists.")
+        if self.db.check_if_habit_exists_in_db(habit_data.name, email):
+            logger.warning(f"Habit: '{habit_data.name}' already exists.")
+            raise ValueError(f"Habit: '{habit_data.name}' already exists.")
         habit = self.db.add_habit_to_db(
             name=habit_data.name,
             description=habit_data.description,
             frequency=habit_data.frequency,
+            email=email,
             mark_done=habit_data.mark_done,
-            user_id=habit_data.user_id,
         )
         logger.info(f"Habit: {habit_data.name} added successfully.")
         return habit
 
-    def get_all_habits(self, user_id: UUID) -> list[HabitBase]:
+    def get_all_habits(self, email: str) -> list[HabitBase]:
         """
         Get all habits from database.
         Returns:
             List of habit objects
         """
         logger.info("Fetching all habits")
+        user = self.db.fetch_user_by_email(email)
+        user_id = cast(UUID, user.user_id)
         habits = self.db.fetch_all_habit_results(user_id)
         logger.debug(f"Found {len(habits)} habits")
         return habits
 
-    def update_habit(
-        self, habit_name: str, updates: HabitUpdate, user_id: UUID
-    ) -> None:
+    def update_habit(self, habit_name: str, updates: HabitUpdate, email: str) -> bool:
         """
         Update an existing habit.
         Args:
@@ -142,30 +87,32 @@ class HabitService:
             ValueError: If habit not found
         """
         logger.info(f"Updating habit: {habit_name}")
-        if not self.db.check_if_habit_exists_in_db(habit_name, user_id):
+        if not self.db.check_if_habit_exists_in_db(habit_name, email):
             raise ValueError(f"Habit with name: '{habit_name}' not found.")
         update_data = updates.model_dump(exclude_none=True)
         if not update_data:
             logger.warning("No fields to update.")
-            return
-        self.db.update_habit(habit_name, update_data, user_id)
+            return False
+        update = self.db.update_habit(habit_name, update_data, email)
         logger.info(f"Habit '{habit_name}' updated successfully")
+        return update
 
-    def mark_habit_done(self, habit_name: str, user_id: UUID) -> None:
+    def mark_habit_done(self, habit_name: str, email: str) -> None:
         """
         Mark a habit as completed.
         Args:
             habit_name: Name of habit to mark as done
+            email: User's email address
         Raises:
             ValueError: If habit not found
         """
         logger.info(f"Marking habit '{habit_name}' as done")
-        if not self.db.check_if_habit_exists_in_db(habit_name, user_id):
+        if not self.db.check_if_habit_exists_in_db(habit_name, email):
             raise ValueError(f"Habit '{habit_name}' not found")
-        self.db.mark_habit_as_done(habit_name, user_id)
+        self.db.mark_habit_as_done(habit_name, email)
         logger.info(f"Habit '{habit_name}' marked as done")
 
-    def delete_all_habits(self) -> None:
+    def delete_habits_for_all_users(self) -> None:
         """Delete all habits from the database."""
         logger.warning("Deleting all habits")
         self.db.execute_query("DELETE FROM habits")
@@ -245,10 +192,16 @@ class HabitManager:
     """
     High-level interface for habit management.
     Combines service and formatter for easy use.
+    DEPRECATED: Use AsyncHabitManager from habit_async.py instead.
     """
 
     def __init__(self, db_path: str | None = None) -> None:
         """Initialize habit manager."""
+        warn(
+            "HabitManager is deprecated. Use AsyncHabitManager from habit_async.py",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.service = HabitService(db_path=db_path)
         self.formatter = HabitFormatter()
         self.running = True
@@ -258,9 +211,9 @@ class HabitManager:
         habit_name: str,
         description: str,
         frequency: str,
-        user_id: UUID,
+        email: str,
         mark_done: bool = False,
-    ) -> HabitBase:
+    ) -> HabitBase | str:
         """Add a new habit."""
         normalized_habit_name = normalize_habit_name(habit_name)
         habit_data = HabitCreate(
@@ -268,87 +221,127 @@ class HabitManager:
             description=description,
             frequency=frequency,
             mark_done=mark_done,
-            user_id=user_id,
         )
-        return self.service.create_habit(habit_data)
+        try:
+            habit = self.service.create_habit(habit_data, email)
+            logger.info(f"Habit '{habit.name}' added successfully!")
+            return habit
+        except ValueError as e:
+            return f"Error: {e}"
+        except Exception as e:
+            logger.error(f"Failed to add habit: {e}")
+            return f"Failed to add habit: {e}"
 
     def update_habit(
-        self, habit_name: str, updates: dict[str, Any], user_id: UUID
-    ) -> None:
+        self, habit_name: str, updates: dict[str, Any], email: str
+    ) -> bool:
         """Updates specific value relate to the habit"""
         normalized_habit_name = normalize_habit_name(habit_name)
         update_model = HabitUpdate(**updates)
-        self.service.update_habit(normalized_habit_name, update_model, user_id)
+        return self.service.update_habit(normalized_habit_name, update_model, email)
 
-    def complete_habit(self, habit_name: str, user_id: UUID) -> None:
+    def complete_habit(self, habit_name: str, email: str) -> str:
         """Mark a habit as completed."""
         normalized_habit_name = normalize_habit_name(habit_name)
-        self.service.mark_habit_done(normalized_habit_name, user_id)
+        try:
+            self.service.mark_habit_done(normalized_habit_name, email)
+            return f"Habit '{normalized_habit_name}' marked as complete!"
+        except ValueError as e:
+            return f"Error: {e}"
+        except Exception as e:
+            logger.error(f"Failed to complete habit: {e}")
+            return f"Failed to complete habit: {e}"
 
     def clear_all_habits(self) -> None:
         """Delete all habits."""
-        self.service.delete_all_habits()
+        self.service.delete_habits_for_all_users()
 
-    def list_habits(self, user_id: UUID) -> str:
-        """Get all habits for a specific user based on username"""
-        habits = self.service.get_all_habits(user_id)
+    def get_habits_by_user_email(self, email: str) -> str:
+        """Get all habits for a specific user based on email"""
+        habits = self.service.get_all_habits(email)
         return self.formatter.format_as_string(habits)
 
 
 class UserService:
-    """Service layer for user operations - handles business logic."""
+    """Service layer for user operations - handles business logic.
+    DEPRECATED: Use AsyncUserService from habit_async.py instead.
+    """
 
     def __init__(self, db_path: str | None = None) -> None:
         """Initialize user service with database connection."""
+        warn(
+            "UserService is deprecated. Use AsyncUserService from habit_async.py",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.db = HabitDatabase(db_url=db_path) if db_path else HabitDatabase()
         self.formatter = HabitFormatter()
-        self.db.init_db_sync()
 
-    def add_user(self, user_name: str, email_address: str, nickname: str) -> UserBase:
+    def create_user(
+        self, username: str, email: str, nickname: str, password: str
+    ) -> UserBase:
         """Create a new user."""
-        logger.info(f"Creating user: {user_name} to database.")
-        user = self.db.create_new_user(user_name, email_address, nickname)
-        logger.info(f"User: {user_name} added successfully.")
+        logger.info(f"Creating user: {username} to database.")
+        user = self.db.create_new_user(username, email, nickname, password)
+        logger.info(f"User: {username} added successfully.")
+        return user
+
+    def get_user_by_email_address(self, email: str) -> UserBase:
+        """Get user by email address."""
+        logger.info(f"Fetching user by email address: {email}")
+        user = self.db.fetch_user_by_email(email)
+        logger.debug(f"Found user: {user}")
         return user
 
 
 class UserManager:
-    """High-level interface for user management."""
+    """High-level interface for user management.
+    DEPRECATED: Use AsyncUserManager from habit_async.py instead.
+    """
 
     def __init__(self, db_path: str | None = None) -> None:
         """Initialize user manager."""
+        warn(
+            "UserManager is deprecated. Use AsyncUserManager from habit_async.py",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.user_service = UserService(db_path=db_path)
 
     def create_user(
-        self, user_name: str, email_address: str, nickname: str
+        self, username: str, email: str, nickname: str, password: str
     ) -> UserBase:
         """Creates a user"""
-        return self.user_service.add_user(user_name, email_address, nickname)
+        return self.user_service.create_user(username, email, nickname, password)
+
+    def get_user_by_email_address(self, email: str) -> UserBase:
+        """Get user by email address."""
+        return self.user_service.get_user_by_email_address(email)
 
 
 if __name__ == "__main__":
     manager = HabitManager()
     user_manager = UserManager()
-
+    email = "j.kowalski@example.com"
+    password = "password123"
     user = user_manager.create_user(
-        user_name="wojslaw", email_address="wojslaw@example.com", nickname="woj"
+        username="jkowal", email=email, nickname="JohhnyKowalski", password=password
     )
-    user_id = user.user_id
 
     try:
         manager.add_habit(
             habit_name="Exercise",
             description="Morning workout",
             frequency="daily",
-            user_id=user_id,
+            email=email,
         )
         manager.update_habit(
-            habit_name="Exercise", updates={"frequency": "weekly"}, user_id=user_id
+            habit_name="Exercise", updates={"frequency": "weekly"}, email=email
         )
     except ValueError as e:
         print(f"Error: {e}")
 
     manager.clear_all_habits()
-    habits = manager.list_habits(user_id)
+    habits = manager.get_habits_by_user_email(email)
 
     print(f"List of habits: {habits}, type: {type(habits)}")

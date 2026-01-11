@@ -1,28 +1,45 @@
 # Habit Tracker
 
-A command-line application for tracking daily habits with SQLite persistence.
+**Version 0.1.0**
+
+A command-line application for tracking daily habits with per-user support and SQLite persistence.
 
 ## Features
 
-- Add and manage habits with custom descriptions and frequencies
-- Mark habits as complete
-- Track habit completion status
-- Per-user habit tracking
-- Interactive and command-line modes
-- SQLite database for persistent storage
+- **Per-user habit management** with JWT authentication and password hashing
+- **REST API** built with FastAPI for habit tracking operations
+- **CLI interface** with interactive and command-line modes
+- **Add, complete, and list habits** with custom descriptions and frequencies
+- **SQLite database** with SQLAlchemy ORM (async support)
+- **Alembic database migrations** for schema management
+- **Type-safe operations** with Pydantic validation
+- **Comprehensive test coverage** with pytest
+- **Repository pattern** for data access layer
+- **Security features**: password hashing (pwdlib), JWT tokens
 
 ## Requirements
 
-- Python 3.8+
-- click
-- pytest
+- Python 3.13+
+- uv (recommended for dependency management)
+
+## Key Dependencies
+
+- FastAPI 0.121.1+ - Web framework for API
+- SQLAlchemy 2.0.44+ - ORM with async support
+- Alembic 1.17.2+ - Database migrations
+- Pydantic 2.12.4+ - Data validation
+- PyJWT 2.10.1+ - JWT token handling
+- pwdlib 0.3.0+ - Password hashing
+- pytest 8.4.2+ - Testing framework
+- Ruff 0.14.4+ - Linting and formatting
+- mypy 1.18.2+ - Type checking
 
 ## Installation
 
 ```bash
 git clone https://github.com/wojciechbednarz/habit-tracker.git
 cd habit-tracker
-pip install -e .
+uv sync
 ```
 
 ## Usage
@@ -30,77 +47,157 @@ pip install -e .
 ### Interactive Mode
 
 ```bash
-python -m src.main interactive
+uv run python -m src.cli.main interactive
 ```
 
+On startup, you will be prompted for a username. If the user does not exist, you will be asked to provide an email and nickname to create a new account.
+
 Available commands in interactive mode:
-- `add` - Add a new habit with name, description, and frequency
+- `add` - Add a new habit (prompts for name, description, frequency)
 - `complete` - Mark a habit as complete
-- `list` - Display all habits
-- `data` - Display habit data
+- `list` - Display all habits for the current user
 - `quit` - Exit interactive mode
 
 ### Command-Line Mode
 
 ```bash
 # Add a habit
-python -m src.main add "Morning Exercise"
+uv run python -m src.cli.main add --name "Morning Exercise" --description "Daily exercise routine" --frequency daily
 
-# Mark a habit as complete
-python -m src.main complete "Morning Exercise"
+# Mark a habit as complete (use the habit name as argument)
+uv run python -m src.cli.main complete "Morning Exercise"
 
 # List all habits
-python -m src.main list-all
-
-# Specify user (default: "default")
-python -m src.main --user john interactive
+uv run python -m src.cli.main list-all
 ```
 
-### Additional Commands
+### API Mode
+
+Start the FastAPI server:
 
 ```bash
-# Greeting command
-python -m src.main greet --name John --prefix Mr --number 3
+uv run uvicorn src.api.main:app --reload
 ```
 
-```bash
-# Running the file from root
-python -m src.core.habit
-```
+The API will be available at `http://localhost:8000` with interactive docs at `/docs`.
+
+**API Endpoints:**
+- `POST /api/v1/users/` - Create new user
+- `POST /api/v1/security/token` - Get JWT access token
+- `GET /api/v1/habits/` - List user's habits
+- `POST /api/v1/habits/` - Create new habit
+- `PUT /api/v1/habits/{habit_id}` - Update habit
+- `DELETE /api/v1/habits/{habit_id}` - Delete habit
+- `POST /api/v1/habits/{habit_id}/complete` - Mark habit as complete
 
 ## Project Structure
 
 ```
 habit-tracker/
+├── alembic/                 # Database migrations
+│   ├── versions/           # Migration scripts
+│   ├── env.py
+│   └── script.py.mako
 ├── src/
-│   ├── cli/
-│   │   └── commands.py      # Click CLI commands
-│   ├── core/
-│   │   ├── db/
-│   │   │   └── crud.py      # Database operations
-│   │   ├── greet.py         # Greeting functionality
-│   │   └── habit.py         # Core habit logic
-│   ├── utils/
-│   │   ├── helpers.py       # Utility functions
-│   │   └── logger.py        # Logging configuration
-│   └── main.py              # Application entry point
-├── tests/
-│   └── test_habit_handler.py
-├── conftest.py
-└── pyproject.toml
+│   ├── api/                # FastAPI REST API
+│   │   ├── main.py        # API entry point
+│   │   └── v1/            # API version 1
+│   │       └── routers/   # API route handlers
+│   │           ├── admin.py
+│   │           ├── dependencies.py
+│   │           ├── habits.py
+│   │           ├── security.py
+│   │           └── users.py
+│   ├── cli/                # Command-line interface
+│   │   ├── commands.py    # CLI commands
+│   │   └── main.py        # CLI entry point
+│   ├── core/               # Core business logic
+│   │   ├── db.py          # Database session management
+│   │   ├── exceptions.py  # Custom exceptions
+│   │   ├── greet.py       # Greeting functionality
+│   │   ├── habit.py       # Habit management logic
+│   │   ├── habit_async.py # Async habit operations
+│   │   ├── models.py      # SQLAlchemy ORM models
+│   │   ├── schemas.py     # Pydantic schemas
+│   │   └── security.py    # Authentication & JWT
+│   ├── repository/         # Data access layer
+│   │   ├── base.py        # Base repository
+│   │   ├── habit_repository.py
+│   │   └── user_repository.py
+│   └── utils/             # Utilities
+│       ├── helpers.py
+│       └── logger.py
+├── tests/                  # Test suite
+│   ├── test_habit_api.py
+│   ├── test_habit_history.py
+│   ├── test_habit_manager.py
+│   ├── test_habit_repository.py
+│   ├── test_habit_service.py
+│   ├── test_habit_update.py
+│   └── test_user_repository.py
+├── alembic.ini
+├── conftest.py             # Pytest fixtures
+├── justfile                # Command shortcuts (just)
+└── pyproject.toml          # Project configuration
 ```
 
 ## Development
 
+### Setup
+
+Install development dependencies:
+```bash
+uv sync
+```
+
 ### Running Tests
 
 ```bash
-pytest
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=html --cov-report=term
+
+# Run specific test case with additional logging
+uv run pytest -v -s -k "test_create_habit_positive"
+
+# Or use justfile shortcuts
+just test
+just test-cov
+```
+
+### Code Quality
+
+```bash
+# Format code
+just fmt
+
+# Lint code
+just lint
+
+# Type check
+just typecheck
 ```
 
 ### Database
 
-The application uses SQLite database (`habit_tracker.db`) stored in the project root. The database is created automatically on first run.
+The application uses SQLite (`habits.db`) for data persistence with async support via aiosqlite. Database schema is managed via Alembic migrations.
+
+**Create a new migration:**
+```bash
+uv run alembic revision --autogenerate -m "Description"
+```
+
+**Apply migrations:**
+```bash
+uv run alembic upgrade head
+```
+
+**Rollback migration:**
+```bash
+uv run alembic downgrade -1
+```
 
 ## Contributing
 

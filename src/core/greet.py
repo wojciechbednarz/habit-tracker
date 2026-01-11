@@ -35,7 +35,7 @@ class Greet:
     def __init__(self) -> None:
         """Greet class to manage greeting state."""
         self.timestamp_factory = TimestampFactory()
-        self.last_greeted = None
+        self.last_greeted: datetime | None = None
 
     def last_time_greeted(self) -> str:
         """Return a string representation of the last greeted time."""

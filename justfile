@@ -15,7 +15,7 @@ fmt:
 
 # Lint code
 lint:
-    uv run ruff check .
+    uv run ruff check --fix .
 
 # Type check
 typecheck:
@@ -27,7 +27,7 @@ test:
 
 # Run tests with coverage
 test-cov:
-    uv run pytest --cov=habit_tracker --cov-report=html --cov-report=term
+    uv run pytest --cov=habit-tracker --cov-report=html --cov-report=term
 
 # Run all checks (lint, typecheck, test)
 check: lint typecheck test

@@ -17,10 +17,12 @@ repos:
           - sqlalchemy>=2.0
           - types-click
           - aiosqlite
+          - fastapi
         args:
           - --python-version=3.13
           - --ignore-missing-imports
           - --no-strict-optional
+          - --config-file=pyproject.toml
         files: ^src/
 
   # Pre-commit hooks for basic checks
@@ -46,4 +48,4 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [commit]
+        stages: [pre-commit]

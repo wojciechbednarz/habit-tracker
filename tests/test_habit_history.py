@@ -4,7 +4,8 @@ from uuid import uuid4
 
 import pytest
 
-from src.core.habit import HabitBase, HabitHistory
+from src.core.models import HabitBase
+from src.core.schemas import HabitHistory
 
 testdata = [
     {"habit_name": "Exercise", "description": "Morning workout", "frequency": "daily"},

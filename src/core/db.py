@@ -1,17 +1,14 @@
 """Database interaction module."""
 
-from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import (
-    create_engine,
-    text,
-)
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import create_engine, select, text
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.models import Base, HabitBase, UserBase
+from src.core.security import get_password_hash
 from src.utils.logger import setup_logger
 
 DATABASE_ASYNC_URL = "sqlite+aiosqlite:///./habits.db"
@@ -29,18 +26,14 @@ class AsyncDatabase:
         self.async_session_maker = async_sessionmaker(
             self.async_engine, expire_on_commit=False
         )
+        self.db_url = db_url
 
     async def init_db_async(self) -> None:
-        """Starts SQLAlchemy database engine and create table for Post class"""
+        """Starts SQLAlchemy database engine and create table for Post class.
+        FOR TESTING ONLY - Creates tables directly without migrations.
+        """
         async with self.async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-
-    async def get_async_session(self) -> AsyncGenerator[AsyncSession]:
-        """
-        Gets a session which allows accessing the database and read/write asynchronously
-        """
-        async with self.async_session_maker() as session:
-            yield session
 
 
 class SyncDatabase:
@@ -52,7 +45,7 @@ class SyncDatabase:
         self.sync_session_maker = sessionmaker(self.sync_engine, expire_on_commit=False)
 
     def init_db_sync(self) -> None:
-        """Starts SQLAlchemy database engine and create table for Post class"""
+        """FOR TESTING ONLY - Creates tables directly without migrations."""
         with self.sync_engine.begin() as conn:
             Base.metadata.create_all(bind=conn)
 
@@ -67,50 +60,19 @@ class SyncDatabase:
                 return conn.execute(text(query), params)
 
 
-class AsyncHabitDatabase(AsyncDatabase):
-    """Handle habit-related asynchronous database operations."""
-
-    def __init__(self, db_url: str = DATABASE_ASYNC_URL):
-        super().__init__(db_url=db_url)
-        self.init_db_async()
-
-    async def add_habit_to_db(
-        self,
-        name: str,
-        description: str,
-        frequency: str,
-        user_id: UUID,
-        mark_done: bool = False,
-    ) -> HabitBase:
-        """Adds habit to the database"""
-        logger.debug(f"Adding habit: {name} to database...")
-        try:
-            async with self.async_session_maker() as session:
-                new_habit = HabitBase(
-                    id=uuid4(),
-                    name=name,
-                    description=description,
-                    frequency=frequency,
-                    mark_done=mark_done,
-                    user_id=UUID(user_id) if isinstance(user_id, str) else user_id,
-                )
-                session.add(new_habit)
-                await session.commit()
-                await session.refresh(new_habit)
-                logger.info(f"Habit {name} added successfully with ID: {new_habit.id}")
-                return new_habit
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Error adding habit: {e}")
-            raise
-
-
 class HabitDatabase(SyncDatabase):
-    """Handle habit-related database operations."""
+    """Handle habit-related database operations.
+    DEPRECATED: This synchronous database class is kept for backward compatibility.
+    New code should use AsyncHabitService with repository pattern instead.
+    """
 
     def __init__(self, db_url: str = DATABASE_SYNC_URL):
         super().__init__(db_url=db_url)
-        self.init_db_sync()
+
+    def _get_user_id(self, email: str) -> UUID:
+        user = self.fetch_user_by_email(email)
+        user_id = cast(UUID, user.user_id)
+        return user_id
 
     def fetch_all_habit_results(self, user_id: UUID) -> list[HabitBase]:
         """Fetches all results from the database."""
@@ -125,9 +87,11 @@ class HabitDatabase(SyncDatabase):
             logger.error(f"Error while fetching habits: {e}")
             raise
 
-    def check_if_habit_exists_in_db(self, habit_name: str, user_id: UUID) -> bool:
+    def check_if_habit_exists_in_db(self, habit_name: str, email: str) -> bool:
         """Check if habit already exists in the database."""
         logger.info("Checking if habit exists in the database...")
+        user = self.fetch_user_by_email(email)
+        user_id = cast(UUID, user.user_id)
         result = self.fetch_all_habit_results(user_id)
         for row in result:
             if row.name == habit_name:
@@ -139,20 +103,22 @@ class HabitDatabase(SyncDatabase):
         name: str,
         description: str,
         frequency: str,
-        user_id: UUID,
+        email: str,
         mark_done: bool = False,
     ) -> HabitBase:
         """Adds habit to the database"""
         logger.debug(f"Adding habit: {name} to database...")
         try:
             with self.sync_session_maker() as session:
+                user = self.fetch_user_by_email(email)
+                user_id = cast(UUID, user.user_id)
                 new_habit = HabitBase(
                     id=uuid4(),
                     name=name,
                     description=description,
                     frequency=frequency,
                     mark_done=mark_done,
-                    user_id=UUID(user_id) if isinstance(user_id, str) else user_id,
+                    user_id=user_id,
                 )
                 session.add(new_habit)
                 session.commit()
@@ -164,11 +130,13 @@ class HabitDatabase(SyncDatabase):
             logger.error(f"Error adding habit: {e}")
             raise
 
-    def update_habit(self, name: str, params: dict, user_id: UUID) -> bool:
+    def update_habit(self, name: str, params: dict[str, Any], email: str) -> bool:
         """Updates habit in the database using ORM"""
         logger.info(f"Updating habit: {name} with parameters: {params}")
         try:
             with self.sync_session_maker() as session:
+                user = self.fetch_user_by_email(email)
+                user_id = cast(UUID, user.user_id)
                 habit = (
                     session.query(HabitBase)
                     .filter(HabitBase.user_id == user_id, HabitBase.name == name)
@@ -187,12 +155,11 @@ class HabitDatabase(SyncDatabase):
             logger.error(f"Error during updating habit: {name}. Error: {e}")
             return False
 
-    def mark_habit_as_done(self, name: str, user_id: UUID) -> bool:
+    def mark_habit_as_done(self, name: str, email: str) -> bool:
         """Marks habit as done in the database"""
         logger.info(f"Marking habit: {name} as done in the database.")
         try:
-            if isinstance(user_id, str):
-                user_id = UUID(user_id)
+            user_id: UUID = self._get_user_id(email)
             with self.sync_session_maker() as session:
                 habit = (
                     session.query(HabitBase)
@@ -205,7 +172,7 @@ class HabitDatabase(SyncDatabase):
                         was not found in the database."
                     )
                     return False
-                habit.mark_done = True
+                habit.mark_done = True  # type: ignore[assignment]
                 session.commit()
                 return True
         except Exception as e:
@@ -213,34 +180,54 @@ class HabitDatabase(SyncDatabase):
             return False
 
     def create_new_user(
-        self, user_name: str, email_address: str, nickname: str
+        self, username: str, email: str, nickname: str, password: str
     ) -> UserBase:
         """Creates a new user in the database"""
-        logger.info(f"Creating a new user with username: {user_name}.")
+        logger.info(f"Creating a new user with username: {username}.")
         try:
             with self.sync_session_maker() as session:
-                user = (
-                    session.query(UserBase)
-                    .filter_by(email_address=email_address)
-                    .first()
-                )
+                user = session.query(UserBase).filter_by(email=email).first()
                 if user:
                     logger.warning(
-                        f"User with provided e-mail address {email_address} \
+                        f"User with provided e-mail address {email} \
                                    already exists in the database."
                     )
                     return user
                 new_user = UserBase(
-                    user_name=user_name, email_address=email_address, nickname=nickname
+                    username=username,
+                    email=email,
+                    nickname=nickname,
+                    hashed_password=get_password_hash(password),
                 )
                 session.add(new_user)
                 session.commit()
                 session.refresh(new_user)
                 logger.debug(
-                    f"User with e-mail address {email_address} successfully \
-                             added to the database."
+                    f"User with e-mail address {email} successfully \
+                      added to the database."
                 )
                 return new_user
         except Exception as e:
-            logger.error(f"Creating new user with username {user_name} failed: {e}")
+            logger.error(f"Creating new user with username {username} failed: {e}")
             raise Exception("User creation failed") from e
+
+    def fetch_user_by_email(self, email: str) -> UserBase:
+        """Fetch user by email address."""
+        logger.info("Fetching user by email address from the database...")
+        try:
+            with self.sync_session_maker() as session:
+                query = select(UserBase).where(UserBase.email == email)
+                result = session.execute(query)
+                user = result.scalar_one_or_none()
+                if user:
+                    logger.info(f"Fetched user: {user}")
+                    return user
+                else:
+                    logger.warning(
+                        f"User with provided e-mail address {email} \
+                        was not found in the database."
+                    )
+                    raise Exception("User not found")
+        except Exception as e:
+            logger.error(f"Getting user by e-mail address {email} failed: {e}")
+            raise Exception("Getting user failed") from e

@@ -2,14 +2,9 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Text,
-)
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
 
@@ -36,7 +31,7 @@ class HabitBase(Base):
     created_at = Column(DateTime, default=datetime.now(UTC))
 
     def __repr__(self) -> str:
-        return f"Habit(id={self.id}, name={self.name}, description={self.description}, \
+        return f"Habit(name={self.name}, description={self.description}, \
         frequency={self.frequency}, mark_done={self.mark_done}, \
         created_at={self.created_at})"
 
@@ -47,17 +42,25 @@ class UserBase(Base):
     __tablename__ = "users"
 
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_name = Column(Text, nullable=False)
-    email_address = Column(Text(60))
+    username = Column(Text, nullable=False, unique=True)
+    email = Column(Text(60), unique=True, nullable=False)
     nickname = Column(Text(50), nullable=False)
     created_at = Column(DateTime, default=datetime.now(UTC))
+    disabled = Column(Boolean, nullable=False, default=False)
+    hashed_password = Column(Text, nullable=False)
 
     def __repr__(self) -> str:
         return (
-            f"User(id={self.user_id}, user_name={self.user_name}, "
-            f"email_address={self.email_address}, nickname={self.nickname}, "
+            f"User(id={self.user_id}, username={self.username}, "
+            f"email_address={self.email}, nickname={self.nickname}, "
             f"created_at={self.created_at})"
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Transform database specific data to dictionary"""
+        return {
+            column.key: getattr(self, column.key) for column in self.__table__.columns
+        }
 
 
 class HabitCompletion(Base):
@@ -65,6 +68,6 @@ class HabitCompletion(Base):
 
     __tablename__ = "habit_completion"
 
-    id = Column(UUID, primary_key=True, default=uuid.uuid4)
-    habit_id = Column(UUID, ForeignKey("habits.id"))
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    habit_id = Column(UUID(as_uuid=True), ForeignKey("habits.id"))
     completed_at = Column(DateTime, default=datetime.now(UTC))
