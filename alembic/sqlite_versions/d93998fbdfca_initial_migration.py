@@ -25,9 +25,9 @@ def upgrade() -> None:
     op.create_table(
         "users",
         sa.Column("user_id", sa.UUID(), nullable=False),
-        sa.Column("username", sa.Text(), nullable=False),
-        sa.Column("email", sa.Text(length=60), nullable=True),
-        sa.Column("nickname", sa.Text(length=50), nullable=False),
+        sa.Column("username", sa.VARCHAR(), nullable=False),
+        sa.Column("email", sa.VARCHAR(length=60), nullable=True),
+        sa.Column("nickname", sa.VARCHAR(length=50), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("user_id"),
     )
@@ -35,9 +35,9 @@ def upgrade() -> None:
         "habits",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("user_id", sa.UUID(), nullable=True),
-        sa.Column("name", sa.Text(), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False),
-        sa.Column("frequency", sa.Text(), nullable=False),
+        sa.Column("name", sa.VARCHAR(), nullable=False),
+        sa.Column("description", sa.VARCHAR(), nullable=False),
+        sa.Column("frequency", sa.VARCHAR(), nullable=False),
         sa.Column("mark_done", sa.Boolean(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(

@@ -27,7 +27,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "users",
-        sa.Column("hashed_password", sa.Text(), nullable=False, server_default=""),
+        sa.Column("hashed_password", sa.VARCHAR(), nullable=False, server_default=""),
     )
     # ### end Alembic commands ###
 

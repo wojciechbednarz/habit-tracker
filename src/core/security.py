@@ -6,10 +6,7 @@ from typing import Any
 import jwt
 from pwdlib import PasswordHash
 
-SECRET_KEY = "d1b57d43528e4078b9b90196437781add052e19109acbcf0f9150d250dfce652"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
+from config import settings
 
 password_hash = PasswordHash.recommended()
 
@@ -24,7 +21,9 @@ def create_access_token(
     else:
         expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({"exp": int(expire.timestamp())})
-    encoded_jwt: str = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt: str = jwt.encode(
+        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
     return encoded_jwt
 
 
@@ -44,7 +43,7 @@ def decode_token(token: str) -> dict[str, Any] | None:
     """Decodes JWT token"""
     try:
         decoded_token: dict[str, Any] = jwt.decode(
-            token, SECRET_KEY, algorithms=[ALGORITHM]
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )
         return decoded_token
     except jwt.PyJWTError:

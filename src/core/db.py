@@ -7,12 +7,15 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from config import settings
 from src.core.models import Base, HabitBase, UserBase
 from src.core.security import get_password_hash
 from src.utils.logger import setup_logger
 
-DATABASE_ASYNC_URL = "sqlite+aiosqlite:///./habits.db"
-DATABASE_SYNC_URL = "sqlite:///./habits.db"
+DATABASE_ASYNC_URL = str(settings.DATABASE_URL)
+DATABASE_SYNC_URL = DATABASE_ASYNC_URL.replace(
+    "postgresql+asyncpg://", "postgresql+psycopg2://"
+).replace("sqlite+aiosqlite://", "sqlite://")
 logger = setup_logger(__name__)
 
 __all__ = ["AsyncDatabase", "SyncDatabase", "HabitDatabase", "HabitBase", "UserBase"]
@@ -30,7 +33,8 @@ class AsyncDatabase:
 
     async def init_db_async(self) -> None:
         """Starts SQLAlchemy database engine and create table for Post class.
-        FOR TESTING ONLY - Creates tables directly without migrations.
+        Creates tables directly without migrations.
+        Testing purpose only.
         """
         async with self.async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)

@@ -18,6 +18,7 @@ testdata = [
 ]
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("habit", testdata)
 def test_habit_history_init(habit):
     """Test initialization of HabitHistory with habits."""
@@ -33,6 +34,7 @@ def test_habit_history_init(habit):
     assert habit_obj in habit_history._habits
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("habit", testdata)
 def test_habit_history_len(habit):
     """Test length of HabitHistory."""
@@ -63,6 +65,7 @@ def test_habit_history_len(habit):
     assert len(habit_history) == 2
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("habit", testdata)
 def test_habit_history_getitem(habit):
     """Test getting habit by index from HabitHistory."""

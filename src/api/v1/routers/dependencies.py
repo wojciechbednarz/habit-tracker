@@ -8,7 +8,7 @@ from jwt.exceptions import InvalidTokenError
 
 from src.core.habit_async import AsyncHabitManager, AsyncUserManager
 from src.core.models import UserBase
-from src.core.schemas import TokenData, User, UserInDB
+from src.core.schemas import TokenData, User, UserInDB, UserWithRole
 from src.core.security import decode_token, verify_password
 from src.utils.logger import setup_logger
 
@@ -75,4 +75,24 @@ async def get_current_active_user(
     """Returns the currently active user"""
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+
+async def get_current_user_with_role(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserWithRole:
+    """Returns the currently active user"""
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return UserWithRole(**current_user.model_dump())
+
+
+async def require_admin(
+    current_user: Annotated[UserWithRole, Depends(get_current_user_with_role)],
+) -> UserWithRole:
+    """Dependency to ensure user is an admin."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
+        )
     return current_user

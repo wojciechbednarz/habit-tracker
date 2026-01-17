@@ -1,4 +1,4 @@
-"""Testing API endpoints related to habit-tracker app"""
+"""Unit tests testing API endpoints related to habit-tracker app"""
 
 from collections.abc import AsyncGenerator
 from typing import cast
@@ -27,22 +27,26 @@ HABIT_TEST_DATA = [
 ]
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "name, description, frequency", HABIT_TEST_DATA, ids=["book", "chess", "meditation"]
 )
-def test_get_all_habits(name, description, frequency, authenticated_api_client):
+def test_get_all_habits(name, description, frequency, authenticated_as_user_api_client):
     """Check the response from GET request"""
     json_content = {
         "name": name,
         "description": description,
         "frequency": frequency,
     }
-    response1 = authenticated_api_client.post(url="api/habits", json=json_content)
+    response1 = authenticated_as_user_api_client.post(
+        url="api/habits", json=json_content
+    )
     assert response1.status_code == 200
-    response2 = authenticated_api_client.get(url="api/habits")
+    response2 = authenticated_as_user_api_client.get(url="api/habits")
     assert response2.status_code == 200
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("username, email, nickname, password", USER_TEST_DATA)
 def test_create_user_positive(
     username, email, nickname, password, api_client: TestClient
@@ -65,70 +69,78 @@ def test_create_user_positive(
     assert response.json() == expected_response
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("name, description, frequency", HABIT_TEST_DATA)
 def test_create_habit_positive(
     name: str,
     description: str,
     frequency: str,
-    async_test_user: AsyncUserManager,
-    authenticated_api_client: TestClient,
+    async_test_user_sqlite: AsyncUserManager,
+    authenticated_as_user_api_client: TestClient,
 ):
     """Checks the habit data being sent via POST request"""
     json_content = {
-        "email": async_test_user.email,
+        "email": async_test_user_sqlite.email,
         "name": name,
         "description": description,
         "frequency": frequency,
     }
-    response = authenticated_api_client.post(url="/api/habits", json=json_content)
+    response = authenticated_as_user_api_client.post(
+        url="/api/habits", json=json_content
+    )
     response_json = response.json()
     expected_response = {"message": "Habit created", "id": str(response_json["id"])}
     assert response.status_code == 200
     assert response.json() == expected_response
 
 
+@pytest.mark.unit
 def test_delete_user_positive(
-    async_test_user: AsyncUserManager, authenticated_api_client: TestClient
+    async_test_user_sqlite: AsyncUserManager,
+    authenticated_as_user_api_client: TestClient,
 ) -> None:
     """Deletes the user via DELETE request"""
-    response = authenticated_api_client.delete(
-        url="/api/users", params={"email": async_test_user.email}
+    response = authenticated_as_user_api_client.delete(
+        url="/api/users/me", params={"email": async_test_user_sqlite.email}
     )
     assert response.status_code == 204
 
 
+@pytest.mark.unit
 def test_delete_habit_positive(
     async_test_habit: HabitBase,
-    authenticated_api_client: TestClient,
+    authenticated_as_user_api_client: TestClient,
 ) -> None:
     """Deletes the habit via DELETE request"""
-    response = authenticated_api_client.delete(
+    response = authenticated_as_user_api_client.delete(
         url=f"/api/habits/{async_test_habit.id}",
         params={"id": async_test_habit.id},
     )
     assert response.status_code == 204
 
 
+@pytest.mark.unit
 def test_delete_habits_positive(
-    async_test_user: UserBase,
-    authenticated_api_client: TestClient,
+    async_test_user_sqlite: UserBase,
+    authenticated_as_user_api_client: TestClient,
 ) -> None:
     """Deletes all habits for a user via DELETE request"""
-    response = authenticated_api_client.delete(
-        url="/api/habits/", params={"user_id": async_test_user.user_id}
+    response = authenticated_as_user_api_client.delete(
+        url="/api/habits/", params={"user_id": async_test_user_sqlite.user_id}
     )
     assert response.status_code == 204
 
 
+@pytest.mark.unit
 def test_login_for_access_token_positive(
-    api_client: TestClient, async_test_user: AsyncGenerator[UserBase]
+    api_client: TestClient, async_test_user_sqlite: AsyncGenerator[UserBase]
 ) -> None:
     """Performs positive test of user login API endpoint"""
     response = api_client.post(
         url="/token",
         data={
-            "username": async_test_user.username,
-            "password": async_test_user.password,
+            "username": async_test_user_sqlite.username,
+            "password": async_test_user_sqlite.password,
         },
     )
     assert response.status_code == 200
@@ -138,16 +150,90 @@ def test_login_for_access_token_positive(
     assert data["token_type"] == "bearer"
 
 
+@pytest.mark.unit
 def test_login_for_access_token_negative(
-    api_client: TestClient, async_test_user: AsyncGenerator[UserBase]
+    api_client: TestClient, async_test_user_sqlite: AsyncGenerator[UserBase]
 ) -> None:
     """Performs negative test of user login API endpoint"""
     wrong_password = "wrongpassword"
     response = api_client.post(
         url="/token",
         data={
-            "username": async_test_user.username,
+            "username": async_test_user_sqlite.username,
             "password": wrong_password,
         },
     )
     assert response.status_code == 401
+
+
+@pytest.mark.unit
+def test_read_all_users_with_admin_privileges(
+    authenticated_as_admin_api_client: TestClient,
+) -> None:
+    """Verifies if all users are read correctly for user with admin privileges"""
+    response = authenticated_as_admin_api_client.get(url="/admin/users")
+    assert response.status_code == 200
+    assert "Reading all users successful" in response.text
+
+
+@pytest.mark.unit
+def test_read_all_users_without_admin_privileges(
+    authenticated_as_user_api_client: TestClient,
+) -> None:
+    """Verifies if all users are read correctly for user without admin privileges"""
+    response = authenticated_as_user_api_client.get(url="/admin/users")
+    assert response.status_code == 403
+    assert "Admin privileges required" in response.text
+
+
+@pytest.mark.unit
+def test_update_user_role_with_admin_privileges(
+    async_test_user_sqlite: UserBase, authenticated_as_admin_api_client: TestClient
+) -> None:
+    """Verifies if user role is updated correctly for user with admin privileges"""
+    response = authenticated_as_admin_api_client.patch(
+        url=f"admin/users/{async_test_user_sqlite.user_id}/role",
+        params={"new_role": "admin"},
+    )
+    assert response.status_code == 200
+    assert "User role updated to admin" in response.text
+
+
+@pytest.mark.unit
+def test_update_user_role_without_admin_privileges(
+    async_test_user_sqlite: UserBase, authenticated_as_user_api_client: TestClient
+) -> None:
+    """Verifies if user role is updated correctly for user with admin privileges"""
+    response = authenticated_as_user_api_client.patch(
+        url=f"admin/users/{async_test_user_sqlite.user_id}/role",
+        params={"new_role": "admin"},
+    )
+    assert response.status_code == 403
+    assert "Admin privileges required" in response.text
+
+
+@pytest.mark.unit
+def test_read_user_without_admin_privileges(
+    authenticated_as_user_api_client: TestClient, async_test_user_sqlite: UserBase
+) -> None:
+    """Verifies if users is read correctly for user without admin privileges"""
+    response = authenticated_as_user_api_client.get(
+        url=f"/admin/users/{async_test_user_sqlite.user_id}"
+    )
+    assert response.status_code == 403
+    assert "Admin privileges required" in response.text
+
+
+@pytest.mark.unit
+def test_read_user_with_admin_privileges(
+    authenticated_as_admin_api_client: TestClient, async_test_user_sqlite: UserBase
+) -> None:
+    """Verifies if user is read for user with admin privileges"""
+    response = authenticated_as_admin_api_client.get(
+        url=f"/admin/users/{async_test_user_sqlite.user_id}"
+    )
+    assert response.status_code == 200
+    assert (
+        f"Reading a user with ID {async_test_user_sqlite.user_id} successful"
+        in response.text
+    )

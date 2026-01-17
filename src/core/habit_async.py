@@ -22,12 +22,18 @@ logger = setup_logger(__name__)
 class AsyncUserService:
     """Service layer for user operations - handles business logic."""
 
-    def __init__(self, db_path: str | None = None) -> None:
+    def __init__(
+        self,
+        user_repo: UserRepository,
+        habit_repo: HabitRepository,
+        async_db: AsyncDatabase,
+    ) -> None:
         """Initialize user service with database connection."""
-        self.async_database = AsyncDatabase(db_path) if db_path else AsyncDatabase()
-        async_session_maker = self.async_database.async_session_maker
-        self.user_repo = UserRepository(async_session_maker)
-        self.formatter = HabitFormatter()
+        self.user_repo = user_repo
+        self.habit_repo = habit_repo
+        self.async_db = async_db
+        self.async_session_maker = async_db.async_session_maker
+        self.async_engine = async_db.async_engine
 
     async def create_user(
         self, username: str, email: str, nickname: str, password: str
@@ -44,6 +50,32 @@ class AsyncUserService:
         logger.info(f"User: {username} added successfully.")
         return user
 
+    async def create_user_with_default_habit(
+        self, username: str, email: str, nickname: str, password: str
+    ) -> UserBase:
+        """Creates a user with default habit"""
+        async with self.async_db.async_session_maker() as session:
+            user_base = UserBase(
+                username=username,
+                email=email,
+                nickname=nickname,
+                hashed_password=get_password_hash(password),
+            )
+            session.add(user_base)
+            await session.flush()
+            habit = HabitBase(
+                user_id=user_base.user_id,
+                name="Welcome Habit",
+                description="This is your first habit! Feel free to edit or delete it.",
+                frequency="daily",
+                mark_done=False,
+            )
+            session.add(habit)
+            await session.commit()
+            await session.refresh(user_base)
+            logger.info(f"User {username} and default habit created successfully.")
+            return user_base
+
     async def get_user_by_email_address(self, email: str) -> UserBase:
         """Get user by email address."""
         logger.info(f"Fetching user by email address: {email}")
@@ -59,6 +91,15 @@ class AsyncUserService:
         user = await self.user_repo.get_by_username(username)
         if not user:
             raise UserNotFoundException(f"User with username '{username}' not found.")
+        logger.info(f"Found user: {user}")
+        return user
+
+    async def get_user_by_id(self, user_id: UUID) -> UserBase:
+        """Get user by user ID."""
+        logger.info(f"Fetching user by ID: {user_id}")
+        user = await self.user_repo.get_by_id(user_id)
+        if not user:
+            raise UserNotFoundException(f"User with ID '{user_id}' not found.")
         logger.info(f"Found user: {user}")
         return user
 
@@ -95,41 +136,67 @@ class AsyncUserService:
 class AsyncUserManager:
     """High-level interface for user management."""
 
-    def __init__(self, db_path: str | None = None) -> None:
+    def __init__(
+        self, db_path: str | None = None, service: AsyncUserService | None = None
+    ) -> None:
         """Initialize user manager."""
-        self.user_service = AsyncUserService(db_path=db_path)
+        self.async_db = AsyncDatabase(db_path) if db_path else AsyncDatabase()
+        self.formatter = HabitFormatter()
+        self.running = True
+        if service:
+            self.service = service
+        else:
+            user_repo = UserRepository(self.async_db.async_session_maker)
+            habit_repo = HabitRepository(
+                self.async_db.async_session_maker, self.async_db.async_engine
+            )
+            self.service = AsyncUserService(
+                user_repo=user_repo, habit_repo=habit_repo, async_db=self.async_db
+            )
 
     async def create_user(
         self, username: str, email: str, nickname: str, password: str
     ) -> UserBase:
         """Creates a user"""
-        return await self.user_service.create_user(username, email, nickname, password)
+        return await self.service.create_user(username, email, nickname, password)
+
+    async def create_user_with_default_habit(
+        self, username: str, email: str, nickname: str, password: str
+    ) -> UserBase:
+        """Creates user with a default habit"""
+        return await self.service.create_user_with_default_habit(
+            username, email, nickname, password
+        )
 
     async def update_user(self, user_id: UUID, updates: UserUpdate) -> bool:
         """Updates specific value relate to the user"""
         logger.info(f"Updating user with ID: {user_id}")
-        update = await self.user_service.update_user(user_id, updates)
+        update = await self.service.update_user(user_id, updates)
         logger.info(f"User with ID: {user_id} updated successfully")
         return update
 
     async def delete_user(self, user_id: UUID) -> bool:
         """Creates a user"""
         logger.info(f"Deleting user with ID: {user_id}")
-        deleted = await self.user_service.delete_user(user_id)
+        deleted = await self.service.delete_user(user_id)
         logger.info(f"User with ID: {user_id} deleted successfully")
         return deleted
 
     async def get_user_by_email_address(self, email: str) -> UserBase:
         """Get user by email address."""
-        return await self.user_service.get_user_by_email_address(email)
+        return await self.service.get_user_by_email_address(email)
 
     async def get_user_by_username(self, username: str) -> UserBase:
         """Get user by username"""
-        return await self.user_service.get_user_by_username(username)
+        return await self.service.get_user_by_username(username)
+
+    async def get_user_by_id(self, user_id: UUID) -> UserBase:
+        """Get user by user ID"""
+        return await self.service.get_user_by_id(user_id)
 
     async def read_all_users(self) -> list[UserBase]:
         """Returns a list"""
-        users = await self.user_service.get_all_users()
+        users = await self.service.get_all_users()
         return users
 
 
@@ -186,6 +253,7 @@ class AsyncHabitService:
         logger.info(f"Fetching habits for user with ID: {user_id}")
         habits = await self.habit_repo.get_all_habits_for_user(user_id)
         logger.info(f"Retrieved {len(habits)} habits for user ID: {user_id}")
+        logger.info(f"Habits: {habits}")
         return [HabitResponse.model_validate(habit) for habit in habits]
 
     async def get_specific_habit(self, habit_id: UUID) -> HabitResponse:
@@ -330,28 +398,36 @@ if __name__ == "__main__":
 
     async def main() -> None:
         """Main function to test AsyncHabitManager functionality."""
-        manager = AsyncHabitManager()
-        user_id = UUID("12345678-1234-1234-1234-123456789012")
+        habit_manager = AsyncHabitManager()
+        user_manager = AsyncUserManager()
         try:
-            await manager.add_habit(
-                user_id=user_id,
+            user = await user_manager.create_user(
+                username="testuser12510",
+                email="testuser12510@example.com",
+                nickname="testuser12510",
+                password="testuser12510",
+            )
+            habit = await habit_manager.add_habit(
+                user_id=user.user_id,
                 habit_name="Read a book",
                 description="Read 20 pages of a book",
                 frequency="daily",
                 mark_done=False,
             )
-            await manager.update_habit(
+            await habit_manager.update_habit(
                 updates=HabitUpdate(
                     name="Read a book", description="Read a book", frequency="daily"
                 ),
-                habit_id=UUID("put-a-valid-uuid-here"),
+                habit_id=habit.id,
             )
+            habits = await habit_manager.get_all_habits_for_user(user.user_id)
+            print(f"List of habits: {habits}, type: {type(habits)}")
         except ValueError as e:
             print(f"Error: {e}")
 
-        await manager.clear_all_habits()
-        habits = await manager.get_all_habits_for_user(UUID("put-a-valid-uuid-here"))
-
+        await habit_manager.clear_all_habits()
+        habits = await habit_manager.get_all_habits_for_user(user.user_id)
         print(f"List of habits: {habits}, type: {type(habits)}")
+        await user_manager.delete_user(user.user_id)
 
     asyncio.run(main())

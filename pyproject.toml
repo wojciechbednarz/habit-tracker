@@ -9,12 +9,15 @@ dependencies = [
     "aiosqlite>=0.21.0",
     "alembic>=1.17.2",
     "argon2-cffi>=25.1.0",
+    "asyncpg>=0.31.0",
     "click>=8.3.0",
     "faker>=38.2.0",
     "fastapi[standard]>=0.121.1",
     "httpx>=0.28.1",
     "pre-commit>=4.3.0",
+    "psycopg2-binary>=2.9.11",
     "pwdlib>=0.3.0",
+    "pydantic-settings[standard]>=2.12.0",
     "pydantic[email]>=2.12.4",
     "pyjwt>=2.10.1",
     "pytest>=8.4.2",
@@ -22,6 +25,7 @@ dependencies = [
     "python-dateutil>=2.9.0.post0",
     "ruff>=0.14.4",
     "sqlalchemy[asyncio,mypy]>=2.0.44",
+    "testcontainers[postgres]>=4.14.0",
     "uvicorn>=0.38.0",
 ]
 
@@ -59,10 +63,11 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-plugins = ["pydantic.mypy"]
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 
 [[tool.mypy.overrides]]
-module = "fastapi.*"
+module = "src.core.habit_async"
+disable_error_code = ["arg-type"]
 disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
@@ -101,7 +106,8 @@ extension-pkg-allow-list = ["sqlalchemy"]
 disable = [
   "logging-fstring-interpolation",
   "import-error",
-  "C0114"
+  "C0114",
+  "not-callable"
 ]
 
 [dependency-groups]

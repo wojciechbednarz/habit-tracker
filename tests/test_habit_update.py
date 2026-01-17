@@ -11,6 +11,7 @@ testdata = [
 ]
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("name, description", testdata)
 def test_strip_whitespace_not_none(name, description):
     """Test that whitespace is stripped from habit update parameters."""

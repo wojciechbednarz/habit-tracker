@@ -45,7 +45,7 @@ async def update_user(
     return {"message": "User updated successfully"}
 
 
-@router.delete("/", status_code=204)
+@router.delete("/me", status_code=204)
 async def delete_user(
     current_user: Annotated[User, Depends(get_current_active_user)],
     user_manager: Annotated[AsyncUserManager, Depends(get_user_manager)],

@@ -1,8 +1,8 @@
 # Habit Tracker
 
-**Version 0.1.0**
+**Version 0.2.0**
 
-A command-line application for tracking daily habits with per-user support and SQLite persistence.
+A command-line application for tracking daily habits with per-user support and PostgreSQL persistence.
 
 ## Features
 
@@ -10,12 +10,14 @@ A command-line application for tracking daily habits with per-user support and S
 - **REST API** built with FastAPI for habit tracking operations
 - **CLI interface** with interactive and command-line modes
 - **Add, complete, and list habits** with custom descriptions and frequencies
-- **SQLite database** with SQLAlchemy ORM (async support)
+- **SQlite database** for quick unit tests
+- **PostgreSQL database** with SQLAlchemy ORM (async support)
 - **Alembic database migrations** for schema management
 - **Type-safe operations** with Pydantic validation
 - **Comprehensive test coverage** with pytest
 - **Repository pattern** for data access layer
-- **Security features**: password hashing (pwdlib), JWT tokens
+- **Security features** password hashing (pwdlib), JWT tokens
+- **Containerization** with Docker containers
 
 ## Requirements
 
@@ -162,6 +164,11 @@ uv run pytest --cov=src --cov-report=html --cov-report=term
 # Run specific test case with additional logging
 uv run pytest -v -s -k "test_create_habit_positive"
 
+# You can also use specific tag for given tests
+uv run pytest -m unit
+
+uv run pytest -m integration
+
 # Or use justfile shortcuts
 just test
 just test-cov
@@ -182,7 +189,7 @@ just typecheck
 
 ### Database
 
-The application uses SQLite (`habits.db`) for data persistence with async support via aiosqlite. Database schema is managed via Alembic migrations.
+The application itself uses dockerized PostgreSQL (also for integration tests) and SQLite (`habits.db`) for quick unit tests with async support via aiosqlite. Database schema is managed via Alembic migrations.
 
 **Create a new migration:**
 ```bash
@@ -198,6 +205,22 @@ uv run alembic upgrade head
 ```bash
 uv run alembic downgrade -1
 ```
+
+
+### Docker
+
+The application is containerized using Docker. Dockerfile is created to run the app and used together with postgres and adminer services in `docker-compose.yaml`
+
+# Run application and database services
+```bash
+docker-compose up
+```
+
+# Access the app via:
+- http://127.0.0.1:8000
+
+# Access the database via adminer:
+- http://127.0.0.1:8080
 
 ## Contributing
 

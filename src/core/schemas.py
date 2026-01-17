@@ -106,6 +106,14 @@ class User(BaseModel):
     )
 
 
+class UserWithRole(User):
+    """User with role - for internal/admin usage only"""
+
+    role: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserCreate(BaseModel):
     """
     Pydantic class describing types of the user data needed during registration process
@@ -147,25 +155,38 @@ class UserUpdate(BaseModel):
     """Pydantic scheme for validation of the user data related to PUT request"""
 
     username: str | None = Field(
-        ...,
+        None,
         min_length=3,
         max_length=50,
         description="Username must be between 3 and 50 characters",
     )
     nickname: str | None = Field(
-        ...,
+        None,
         min_length=3,
         max_length=50,
         description="Nickname must be between 3 and 50 characters",
     )
+    role: str | None = Field(
+        None,
+        min_length=3,
+        max_length=20,
+        description="Role must be between 3 and 20 characters",
+    )
 
 
-class UserAdminRead(BaseModel):
+class UserAdminReadAllUsers(BaseModel):
     """Pydantic scheme to validate response related to getting all users data"""
 
     message: str
     users: list[User]
     total: int
+
+
+class UserAdminReadUser(BaseModel):
+    """Pydantic scheme to validate response related to getting user datga"""
+
+    message: str
+    user: User
 
 
 class Token(BaseModel):
@@ -185,3 +206,4 @@ class UserInDB(User):
     """Pydantic class describing user in database"""
 
     hashed_password: str
+    role: str

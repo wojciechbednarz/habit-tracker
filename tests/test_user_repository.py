@@ -1,6 +1,6 @@
 """
 Integration tests for UserRepository entity manipulation methods.
-Real in-memory database usage.
+Real postgres database with testcontainers usage.
 """
 
 from collections.abc import Callable
@@ -13,6 +13,7 @@ from src.core.models import UserBase
 from src.repository.user_repository import UserRepository
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_add_user_success(
     user_repository_real_db: UserRepository, create_user_entity: Callable[..., UserBase]
@@ -23,6 +24,7 @@ async def test_add_user_success(
     assert add_user == user
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_add_user_duplicate_email(
     user_repository_real_db: UserRepository, create_user_entity: Callable[..., UserBase]
@@ -37,6 +39,7 @@ async def test_add_user_duplicate_email(
     assert "already exists" in str(exc_info.value)
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_get_by_email_found(
     user_repository_real_db: UserRepository, create_user_entity: Callable[..., UserBase]
@@ -49,6 +52,7 @@ async def test_get_by_email_found(
     assert retrieved_user is not None
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_get_by_email_not_found(user_repository_real_db: UserRepository) -> None:
     """Tests retrieving a user by email when the user doesn't exist"""
@@ -57,6 +61,7 @@ async def test_get_by_email_not_found(user_repository_real_db: UserRepository) -
     assert retrieved_user is None
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_get_by_username_found(
     user_repository_real_db: UserRepository, create_user_entity: Callable[..., UserBase]
@@ -69,6 +74,7 @@ async def test_get_by_username_found(
     assert retrieved_user is not None
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_get_by_username_not_found(
     user_repository_real_db: UserRepository,
@@ -79,6 +85,7 @@ async def test_get_by_username_not_found(
     assert retrieved_user is None
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_update_user_success(
     user_repository_real_db: UserRepository,
@@ -94,6 +101,7 @@ async def test_update_user_success(
     assert update is True
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_update_user_not_found(user_repository_real_db: UserRepository):
     """Tests updating a non-existent user raises exception"""
@@ -105,6 +113,7 @@ async def test_update_user_not_found(user_repository_real_db: UserRepository):
     assert not updated_user
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_user_success(
     user_repository_real_db: UserRepository,
@@ -117,6 +126,7 @@ async def test_delete_user_success(
     assert deleted
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_user_not_found(
     user_repository_real_db: UserRepository,
@@ -127,6 +137,7 @@ async def test_delete_user_not_found(
     assert not deleted
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_exists_by_email(
     user_repository_real_db: UserRepository,
@@ -140,6 +151,7 @@ async def test_exists_by_email(
     assert exists
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_exists_by_username(
     user_repository_real_db: UserRepository,
@@ -153,6 +165,7 @@ async def test_exists_by_username(
     assert exists
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_get_all_users(
     user_repository_real_db: UserRepository,

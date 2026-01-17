@@ -6,13 +6,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
+from config import settings
 from src.api.v1.routers.dependencies import authenticate_user, get_user_manager
 from src.core.habit_async import AsyncUserManager
 from src.core.schemas import Token
-from src.core.security import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    create_access_token,
-)
+from src.core.security import create_access_token
 
 router = APIRouter(tags=["authentication"])
 
@@ -30,7 +28,7 @@ async def login_for_access_token(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(user.username)}, expires_delta=access_token_expires
     )

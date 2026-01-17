@@ -1,10 +1,10 @@
 """SQLAlchemy models for habits. Models for Habit and User"""
 
 import uuid
-from datetime import UTC, datetime
+from enum import Enum
 from typing import Any
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Text
+from sqlalchemy import VARCHAR, Boolean, Column, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
 
@@ -17,6 +17,13 @@ class Base(DeclarativeBase):
     pass
 
 
+class UserRole(str, Enum):
+    """User role for authorization"""
+
+    USER = "user"
+    ADMIN = "admin"
+
+
 class HabitBase(Base):
     """Declarative class model for habits POST request"""
 
@@ -24,11 +31,13 @@ class HabitBase(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
-    name = Column(Text, nullable=False)
-    description = Column(Text, nullable=False)
-    frequency = Column(Text, nullable=False)
+    name = Column(VARCHAR, nullable=False)
+    description = Column(VARCHAR, nullable=False)
+    frequency = Column(VARCHAR, nullable=False)
     mark_done = Column(Boolean, nullable=False)
-    created_at = Column(DateTime, default=datetime.now(UTC))
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     def __repr__(self) -> str:
         return f"Habit(name={self.name}, description={self.description}, \
@@ -42,18 +51,21 @@ class UserBase(Base):
     __tablename__ = "users"
 
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    username = Column(Text, nullable=False, unique=True)
-    email = Column(Text(60), unique=True, nullable=False)
-    nickname = Column(Text(50), nullable=False)
-    created_at = Column(DateTime, default=datetime.now(UTC))
+    username = Column(VARCHAR, nullable=False, unique=True)
+    email = Column(VARCHAR(60), unique=True, nullable=False)
+    nickname = Column(VARCHAR(50), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     disabled = Column(Boolean, nullable=False, default=False)
-    hashed_password = Column(Text, nullable=False)
+    hashed_password = Column(VARCHAR, nullable=False)
+    role = Column(String(20), nullable=False, default=UserRole.USER)
 
     def __repr__(self) -> str:
         return (
             f"User(id={self.user_id}, username={self.username}, "
             f"email_address={self.email}, nickname={self.nickname}, "
-            f"created_at={self.created_at})"
+            f"role={self.role}, created_at={self.created_at})"
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,4 +82,6 @@ class HabitCompletion(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     habit_id = Column(UUID(as_uuid=True), ForeignKey("habits.id"))
-    completed_at = Column(DateTime, default=datetime.now(UTC))
+    completed_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

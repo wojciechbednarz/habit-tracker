@@ -1,4 +1,4 @@
-"""Unit tests for the HabitManager class."""
+"""Integration tests for the HabitManager class."""
 
 from unittest.mock import AsyncMock
 
@@ -7,6 +7,7 @@ import pytest
 from src.core.schemas import HabitUpdate
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "name, description, frequency",
@@ -47,6 +48,7 @@ async def test_add_habit(
     mocked_habit_manager.service.habit_repo.add.assert_called_once()
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "initial_habit",
@@ -80,6 +82,7 @@ async def test_complete_habit(mocked_habit_manager, create_habit_entity, initial
     )
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_clear_all_habits(mocked_habit_manager):
     """Test clearing all habits through manager layer."""
@@ -92,6 +95,7 @@ async def test_clear_all_habits(mocked_habit_manager):
     )
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "habit_data",
@@ -134,6 +138,7 @@ async def test_get_all_habits_for_user(
     )
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_delete_habit(mocked_habit_manager, create_habit_entity):
     """Test deleting a specific habit through manager layer."""
@@ -147,6 +152,7 @@ async def test_delete_habit(mocked_habit_manager, create_habit_entity):
     mocked_habit_manager.service.habit_repo.delete.assert_called_once_with(habit.id)
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 async def test_update_habit(mocked_habit_manager, create_habit_entity):
     """Test updating a habit through manager layer."""
