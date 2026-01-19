@@ -2,16 +2,23 @@
 
 import random
 import uuid
-from collections.abc import AsyncGenerator, Callable, Generator
+from collections.abc import AsyncGenerator, Callable, Coroutine, Generator
 from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from faker import Faker
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from testcontainers.postgres import PostgresContainer
 
 from src.api.main import app
@@ -37,7 +44,8 @@ from src.repository.habit_repository import HabitRepository
 from src.repository.user_repository import UserRepository
 
 
-def pytest_configure(config):
+def pytest_configure(config: Any) -> None:
+    """Pytest configuration method"""
     config.addinivalue_line("markers", "unit: Fast unit tests with mocks")
     config.addinivalue_line("markers", "integration: Integration tests with real DB")
 
@@ -92,19 +100,19 @@ def fake_user_data_factory() -> Callable[[], tuple[str, str, str, str]]:
 
 
 @pytest.fixture()
-def mock_sync_db(tmp_path: str) -> str:
+def mock_sync_db(tmp_path: Path) -> Generator[str]:
     """Mocks a database where habits are stored"""
     test_db = "test_habits.db"
-    test_db_url = tmp_path / test_db
-    test_db_url = f"sqlite:///{test_db_url}"
-    db = SyncDatabase(db_url=test_db_url)
+    test_db_path = tmp_path / test_db
+    db_url_str = f"sqlite:///{test_db_path}"
+    db = SyncDatabase(db_url=db_url_str)
     Base.metadata.create_all(bind=db.sync_engine)
-    yield test_db_url
+    yield db_url_str
     db.sync_engine.dispose()
 
 
 @pytest.fixture(scope="function")
-def habit_manager(mock_sync_db: str) -> HabitManager:
+def habit_manager(mock_sync_db: str) -> Generator[HabitManager]:
     """Create HabitManager with isolated test database."""
     manager = HabitManager(db_path=mock_sync_db)
     yield manager
@@ -113,29 +121,11 @@ def habit_manager(mock_sync_db: str) -> HabitManager:
 
 
 @pytest.fixture(scope="function")
-def user_manager(mock_sync_db: str) -> UserManager:
+def user_manager(mock_sync_db: str) -> Generator[UserManager]:
     """Create HabitManager with isolated test database."""
     manager = UserManager(db_path=mock_sync_db)
     yield manager
     manager.user_service.db.sync_engine.dispose()
-
-
-@pytest.fixture(scope="function")
-def test_user(
-    user_manager: UserManager,
-    fake_user_data: tuple[str, str, str, str],
-) -> AsyncGenerator[UserBase]:
-    """Create a test user and return its content"""
-    username, email, nickname, password = fake_user_data
-    user = user_manager.create_user(
-        username=username, email=email, nickname=nickname, password=password
-    )
-    user.password = password
-    yield user
-    try:
-        user_manager.delete_user(user.user_id)
-    except Exception:
-        pass
 
 
 @pytest.fixture()
@@ -152,17 +142,20 @@ def api_client(
 
 
 @pytest.fixture()
-def mock_get_current_user_with_role(async_test_user_sqlite: UserBase) -> UserWithRole:
+def mock_get_current_user_with_role(
+    async_test_user_sqlite: dict[str, Any],
+) -> Callable[[], Coroutine[Any, Any, UserWithRole]]:
     """Mock fixture for getting the current user"""
 
-    async def _mock_user() -> User:
+    async def _mock_user() -> UserWithRole:
         """Mock user inner function"""
+        user = async_test_user_sqlite["user"]
         return UserWithRole(
-            user_id=async_test_user_sqlite.user_id,
-            username=async_test_user_sqlite.username,
-            email=async_test_user_sqlite.email,
-            nickname=async_test_user_sqlite.nickname,
-            created_at=async_test_user_sqlite.created_at,
+            user_id=user.user_id,
+            username=user.username,
+            email=user.email,
+            nickname=user.nickname,
+            created_at=user.created_at,
             disabled=False,
             role="user",
         )
@@ -171,17 +164,20 @@ def mock_get_current_user_with_role(async_test_user_sqlite: UserBase) -> UserWit
 
 
 @pytest.fixture()
-def mock_get_current_active_user(async_test_user_sqlite: UserBase) -> Callable:
+def mock_get_current_active_user(
+    async_test_user_sqlite: dict[str, Any],
+) -> Callable[[], Coroutine[Any, Any, User]]:
     """Mock fixture for getting the current active user"""
 
     async def _mock_user() -> User:
         """Mock user inner function"""
+        user = async_test_user_sqlite["user"]
         return User(
-            user_id=async_test_user_sqlite.user_id,
-            username=async_test_user_sqlite.username,
-            email=async_test_user_sqlite.email,
-            nickname=async_test_user_sqlite.nickname,
-            created_at=async_test_user_sqlite.created_at,
+            user_id=user.user_id,
+            username=user.username,
+            email=user.email,
+            nickname=user.nickname,
+            created_at=user.created_at,
             disabled=False,
         )
 
@@ -189,7 +185,9 @@ def mock_get_current_active_user(async_test_user_sqlite: UserBase) -> Callable:
 
 
 @pytest.fixture()
-def mock_require_admin(async_admin_user: UserBase) -> Callable:
+def mock_require_admin(
+    async_admin_user: UserBase,
+) -> Callable[[], Coroutine[Any, Any, UserWithRole]]:
     """Mock fixture for getting admin user"""
 
     async def _mock_user() -> UserWithRole:
@@ -211,8 +209,8 @@ def mock_require_admin(async_admin_user: UserBase) -> Callable:
 def authenticated_as_user_api_client(
     async_user_manager: AsyncUserManager,
     async_habit_manager: AsyncHabitManager,
-    mock_get_current_user_with_role: UserWithRole,
-    mock_get_current_active_user: User,
+    mock_get_current_user_with_role: Callable[[], Coroutine[Any, Any, UserWithRole]],
+    mock_get_current_active_user: Callable[[], Coroutine[Any, Any, User]],
 ) -> Generator[TestClient]:
     """
     Test client with overridden dependencies.
@@ -235,7 +233,7 @@ def authenticated_as_user_api_client(
 def authenticated_as_admin_api_client(
     async_user_manager: AsyncUserManager,
     async_habit_manager: AsyncHabitManager,
-    mock_require_admin: Callable,
+    mock_require_admin: Callable[[], Coroutine[Any, Any, UserWithRole]],
 ) -> Generator[TestClient]:
     """
     Test client with overridden dependencies.
@@ -257,9 +255,14 @@ def create_user_entity(
 ) -> Callable[..., UserBase]:
     """Factory to create UserBase entity for testing."""
 
-    def _create_user(**kwargs) -> UserBase:
+    def _create_user(**kwargs: Any) -> UserBase:  # Changed from dict[str, Any]
         """Create a UserBase entity with optional overrides."""
         username, email, nickname, password = fake_user_data_factory()
+        password_value = kwargs.get("password", password)
+        # Ensure password_value is a string
+        if not isinstance(password_value, str):
+            raise ValueError("Password must be a string")
+
         return UserBase(
             user_id=uuid4(),
             username=kwargs.get("username", username),
@@ -267,7 +270,7 @@ def create_user_entity(
             nickname=kwargs.get("nickname", nickname),
             created_at=datetime.now(UTC),
             disabled=False,
-            hashed_password=get_password_hash(kwargs.get("password", password)),
+            hashed_password=get_password_hash(password_value),
         )
 
     return _create_user
@@ -279,7 +282,7 @@ def create_habit_entity(
 ) -> Callable[..., HabitBase]:
     """Factory to create HabitBase entity for testing."""
 
-    def _create_habit(**kwargs) -> HabitBase:
+    def _create_habit(**kwargs: Any) -> HabitBase:  # Changed from dict[str, Any]
         """Create a HabitBase entity with optional overrides."""
         habit_name, description, frequency = fake_habit_data_factory()
         return HabitBase(
@@ -296,7 +299,8 @@ def create_habit_entity(
 
 
 @pytest.fixture(scope="session")
-def postgres_container() -> Generator:
+def postgres_container() -> Generator[PostgresContainer]:
+    """Creates a postgres container"""
     with PostgresContainer("postgres") as postgres:
         yield postgres
 
@@ -305,11 +309,11 @@ def postgres_container() -> Generator:
 
 
 @pytest_asyncio.fixture()
-async def mock_async_sqlite_db(tmp_path: str) -> AsyncGenerator[str]:
+async def mock_async_sqlite_db(tmp_path: Path) -> AsyncGenerator[str]:
     """Mocks SQLite database"""
     test_db = "test_habits_async.db"
-    test_db_url = tmp_path / test_db
-    test_db_url = f"sqlite+aiosqlite:///{test_db_url}"
+    test_db_path = tmp_path / test_db
+    test_db_url = f"sqlite+aiosqlite:///{test_db_path}"
     db = AsyncDatabase(db_url=test_db_url)
     await db.init_db_async()
     yield test_db_url
@@ -317,7 +321,9 @@ async def mock_async_sqlite_db(tmp_path: str) -> AsyncGenerator[str]:
 
 
 @pytest_asyncio.fixture()
-async def postgres_db_objects(postgres_container) -> AsyncGenerator[str, str]:
+async def postgres_db_objects(
+    postgres_container: PostgresContainer,
+) -> AsyncGenerator[tuple[async_sessionmaker[AsyncSession], AsyncEngine]]:
     """
     Mocks postgres database. Integration tests for real db purpose.
     """
@@ -360,7 +366,7 @@ async def async_habit_manager(
 async def async_test_user_sqlite(
     async_user_manager: AsyncUserManager,
     fake_user_data: tuple[str, str, str, str],
-) -> AsyncGenerator[UserBase]:
+) -> AsyncGenerator[dict[str, Any]]:
     """
     Create a test user and return its content. Uses SQlite database.
     """
@@ -368,10 +374,12 @@ async def async_test_user_sqlite(
     user = await async_user_manager.create_user(
         username=username, email=email, nickname=nickname, password=password
     )
-    user.password = password
-    yield user
+    # Store the actual user_id as UUID type
+    user_id: UUID = user.user_id  # type: ignore[assignment]
+    user.hashed_password = get_password_hash(password)  # type: ignore[assignment]
+    yield {"user": user, "password": password}
     try:
-        await async_user_manager.delete_user(user.user_id)
+        await async_user_manager.delete_user(user_id)
     except Exception:
         pass
 
@@ -384,9 +392,10 @@ async def async_test_user_postgres(
     Create a test user and return its content. Uses postgres database.
     """
     user = await user_repository_real_db.add(create_user_entity())
+    user_id: UUID = user.user_id  # type: ignore[assignment]
     yield user
     try:
-        await user_repository_real_db.delete(user.user_id)
+        await user_repository_real_db.delete(user_id)
     except Exception:
         pass
 
@@ -401,13 +410,15 @@ async def async_admin_user(
     user = await async_user_manager.create_user(
         username=username, email=email, nickname=nickname, password=password
     )
-    user.password = password
+    user_id: UUID = user.user_id  # type: ignore[assignment]
+    user_email: str = user.email  # type: ignore[assignment]
+    user.hashed_password = get_password_hash(password)  # type: ignore[assignment]
     update = UserUpdate(role="admin")
-    await async_user_manager.update_user(user.user_id, update)
-    user = await async_user_manager.get_user_by_email_address(user.email)
+    await async_user_manager.update_user(user_id, update)
+    user = await async_user_manager.get_user_by_email_address(user_email)
     yield user
     try:
-        await async_user_manager.delete_user(user.user_id)
+        await async_user_manager.delete_user(user_id)
     except Exception:
         pass
 
@@ -415,13 +426,14 @@ async def async_admin_user(
 @pytest_asyncio.fixture(scope="function")
 async def async_test_habit(
     async_habit_manager: AsyncHabitManager,
-    async_test_user_sqlite: UserBase,
+    async_test_user_sqlite: dict[str, Any],
     fake_habit_data_factory: Callable[[], tuple[str, str, str]],
 ) -> HabitBase:
     """Create a test user and return its content"""
     habit_name, description, frequency = fake_habit_data_factory()
+    user_id: UUID = async_test_user_sqlite["user"].user_id
     habit = await async_habit_manager.add_habit(
-        user_id=async_test_user_sqlite.user_id,
+        user_id=user_id,
         habit_name=habit_name,
         description=description,
         frequency=frequency,
@@ -432,15 +444,16 @@ async def async_test_habit(
 @pytest_asyncio.fixture(scope="function")
 async def async_test_habits(
     async_habit_manager: AsyncHabitManager,
-    async_test_user_sqlite: UserBase,
+    async_test_user_sqlite: dict[str, Any],
     fake_habit_data_factory: Callable[[], tuple[str, str, str]],
 ) -> list[HabitBase]:
     """Create multiple test habits for a user and return their content"""
     habits = []
+    user_id: UUID = async_test_user_sqlite["user"].user_id
     for _ in range(5):
         habit_name, description, frequency = fake_habit_data_factory()
         habit = await async_habit_manager.add_habit(
-            user_id=async_test_user_sqlite.user_id,
+            user_id=user_id,
             habit_name=habit_name,
             description=description,
             frequency=frequency,
@@ -450,7 +463,7 @@ async def async_test_habits(
 
 
 @pytest_asyncio.fixture
-async def mocked_async_session_maker() -> Callable:
+async def mocked_async_session_maker() -> Callable[..., AsyncSession]:
     """
     Mocks async_sessionmaker and its methods.
     Unit testing purpose (service layer).
@@ -471,7 +484,7 @@ async def mocked_async_session_maker() -> Callable:
 
 
 @pytest_asyncio.fixture()
-async def mocked_user_repository():
+async def mocked_user_repository() -> AsyncMock:
     """
     Mocks the UserRepository class.
     Unit testing purpose (service layer).
@@ -480,7 +493,7 @@ async def mocked_user_repository():
 
 
 @pytest_asyncio.fixture()
-async def mocked_habit_repository():
+async def mocked_habit_repository() -> AsyncMock:
     """
     Mocks the HabitRepository class.
     Unit testing purpose (service layer).
@@ -489,7 +502,9 @@ async def mocked_habit_repository():
 
 
 @pytest_asyncio.fixture()
-async def user_repository_real_db(postgres_db_objects: AsyncGenerator):
+async def user_repository_real_db(
+    postgres_db_objects: tuple[async_sessionmaker[AsyncSession], AsyncEngine],
+) -> AsyncGenerator[UserRepository]:
     """
     Mocks the UserRepository class.
     Integration testing purpose (API and repository layers).
@@ -500,7 +515,9 @@ async def user_repository_real_db(postgres_db_objects: AsyncGenerator):
 
 
 @pytest_asyncio.fixture()
-async def habit_repository_real_db(postgres_db_objects: AsyncGenerator):
+async def habit_repository_real_db(
+    postgres_db_objects: tuple[async_sessionmaker[AsyncSession], AsyncEngine],
+) -> AsyncGenerator[HabitRepository]:
     """
     Mocks the HabitRepository class.
     Integration testing purpose (API and repository layers).
@@ -511,7 +528,9 @@ async def habit_repository_real_db(postgres_db_objects: AsyncGenerator):
 
 
 @pytest_asyncio.fixture
-async def mocked_habit_service(mocked_habit_repository, mocked_user_repository):
+async def mocked_habit_service(
+    mocked_habit_repository: AsyncMock, mocked_user_repository: AsyncMock
+) -> AsyncHabitService:
     """Create real AsyncHabitService with mocked repositories."""
     mock_db = AsyncMock(spec=AsyncDatabase)
     mock_db.async_session_maker = AsyncMock()
@@ -521,24 +540,30 @@ async def mocked_habit_service(mocked_habit_repository, mocked_user_repository):
 
 @pytest_asyncio.fixture
 async def mocked_user_service(
-    mocked_async_session_maker, mocked_habit_repository, mocked_user_repository
-):
+    mocked_async_session_maker: Callable[..., AsyncSession],
+    mocked_habit_repository: AsyncMock,
+    mocked_user_repository: AsyncMock,
+) -> AsyncUserService:
     """Create real AsyncUserService with mocked repositories."""
     mock_db = AsyncMock(spec=AsyncDatabase)
     mock_db.async_session_maker = mocked_async_session_maker
     mock_db.async_engine = AsyncMock()
     service = AsyncUserService(mocked_user_repository, mocked_habit_repository, mock_db)
-    service._mock_session = mocked_async_session_maker.return_value
+    service._mock_session = mocked_async_session_maker.return_value  # type: ignore[attr-defined]
     return service
 
 
 @pytest_asyncio.fixture
-async def mocked_habit_manager(mocked_habit_service):
+async def mocked_habit_manager(
+    mocked_habit_service: AsyncHabitService,
+) -> AsyncHabitManager:
     """Create real AsyncHabitManager with mocked service layer."""
     return AsyncHabitManager(service=mocked_habit_service)
 
 
 @pytest_asyncio.fixture
-async def mocked_user_manager(mocked_user_service):
+async def mocked_user_manager(
+    mocked_user_service: AsyncUserService,
+) -> AsyncUserManager:
     """Create real AsyncUserManager with mocked service layer."""
     return AsyncUserManager(service=mocked_user_service)

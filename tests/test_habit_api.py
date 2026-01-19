@@ -80,7 +80,7 @@ def test_create_habit_positive(
 ):
     """Checks the habit data being sent via POST request"""
     json_content = {
-        "email": async_test_user_sqlite.email,
+        "email": async_test_user_sqlite["user"].email,
         "name": name,
         "description": description,
         "frequency": frequency,
@@ -101,7 +101,7 @@ def test_delete_user_positive(
 ) -> None:
     """Deletes the user via DELETE request"""
     response = authenticated_as_user_api_client.delete(
-        url="/api/users/me", params={"email": async_test_user_sqlite.email}
+        url="/api/users/me", params={"email": async_test_user_sqlite["user"].email}
     )
     assert response.status_code == 204
 
@@ -126,7 +126,7 @@ def test_delete_habits_positive(
 ) -> None:
     """Deletes all habits for a user via DELETE request"""
     response = authenticated_as_user_api_client.delete(
-        url="/api/habits/", params={"user_id": async_test_user_sqlite.user_id}
+        url="/api/habits/", params={"user_id": async_test_user_sqlite["user"].user_id}
     )
     assert response.status_code == 204
 
@@ -139,8 +139,8 @@ def test_login_for_access_token_positive(
     response = api_client.post(
         url="/token",
         data={
-            "username": async_test_user_sqlite.username,
-            "password": async_test_user_sqlite.password,
+            "username": async_test_user_sqlite["user"].username,
+            "password": async_test_user_sqlite["password"],
         },
     )
     assert response.status_code == 200
@@ -159,7 +159,7 @@ def test_login_for_access_token_negative(
     response = api_client.post(
         url="/token",
         data={
-            "username": async_test_user_sqlite.username,
+            "username": async_test_user_sqlite["user"].username,
             "password": wrong_password,
         },
     )
@@ -192,7 +192,7 @@ def test_update_user_role_with_admin_privileges(
 ) -> None:
     """Verifies if user role is updated correctly for user with admin privileges"""
     response = authenticated_as_admin_api_client.patch(
-        url=f"admin/users/{async_test_user_sqlite.user_id}/role",
+        url=f"admin/users/{async_test_user_sqlite['user'].user_id}/role",
         params={"new_role": "admin"},
     )
     assert response.status_code == 200
@@ -205,7 +205,7 @@ def test_update_user_role_without_admin_privileges(
 ) -> None:
     """Verifies if user role is updated correctly for user with admin privileges"""
     response = authenticated_as_user_api_client.patch(
-        url=f"admin/users/{async_test_user_sqlite.user_id}/role",
+        url=f"admin/users/{async_test_user_sqlite['user'].user_id}/role",
         params={"new_role": "admin"},
     )
     assert response.status_code == 403
@@ -218,7 +218,7 @@ def test_read_user_without_admin_privileges(
 ) -> None:
     """Verifies if users is read correctly for user without admin privileges"""
     response = authenticated_as_user_api_client.get(
-        url=f"/admin/users/{async_test_user_sqlite.user_id}"
+        url=f"/admin/users/{async_test_user_sqlite['user'].user_id}"
     )
     assert response.status_code == 403
     assert "Admin privileges required" in response.text
@@ -230,10 +230,10 @@ def test_read_user_with_admin_privileges(
 ) -> None:
     """Verifies if user is read for user with admin privileges"""
     response = authenticated_as_admin_api_client.get(
-        url=f"/admin/users/{async_test_user_sqlite.user_id}"
+        url=f"/admin/users/{async_test_user_sqlite['user'].user_id}"
     )
     assert response.status_code == 200
     assert (
-        f"Reading a user with ID {async_test_user_sqlite.user_id} successful"
+        f"Reading a user with ID {async_test_user_sqlite['user'].user_id} successful"
         in response.text
     )

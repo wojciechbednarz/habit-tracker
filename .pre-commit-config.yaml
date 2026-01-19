@@ -19,6 +19,8 @@ repos:
           - aiosqlite
           - fastapi
           - psycopg2-binary
+          - pydantic
+          - pydantic-settings
         args:
           - --python-version=3.13
           - --ignore-missing-imports
