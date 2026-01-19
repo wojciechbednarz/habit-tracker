@@ -24,7 +24,7 @@ repos:
           - --ignore-missing-imports
           - --no-strict-optional
           - --config-file=pyproject.toml
-        files: ^src/
+        files: ^(src/|config\.py|conftest\.py|pyproject\.toml)
 
   # Pre-commit hooks for basic checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
