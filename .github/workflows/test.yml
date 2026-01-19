@@ -22,6 +22,11 @@ jobs:
               with:
                 version: "0.9.8"
 
+            - name: Install just
+              uses: extractions/setup-just@v3
+              with:
+                just-version: '1.43.0'
+
             - name: Display Python version
               run: uv run python -c "import sys; print(sys.version)"
 
