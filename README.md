@@ -1,8 +1,8 @@
 # Habit Tracker
 
-**Version 0.2.0**
+**Version 0.1.0**
 
-A command-line application for tracking daily habits with per-user support and PostgreSQL persistence.
+A REST API and command-line application for tracking daily habits with per-user support and PostgreSQL persistence.
 
 ## Features
 

@@ -18,6 +18,7 @@ repos:
           - types-click
           - aiosqlite
           - fastapi
+          - psycopg2-binary
         args:
           - --python-version=3.13
           - --ignore-missing-imports
