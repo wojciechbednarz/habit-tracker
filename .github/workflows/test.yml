@@ -10,6 +10,7 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
+        environment: habit-tracker
         steps:
             - uses: actions/checkout@v5
             - name: Set up Python
