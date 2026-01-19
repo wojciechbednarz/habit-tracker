@@ -47,12 +47,12 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="function")
 def fake_user_data() -> tuple[str, str, str, str]:
-    """Generate fake user data for testing, now including password."""
+    """Generate fake user data for testing."""
     faker = Faker()
     unique_suffix = str(uuid.uuid4())[:8]
     username = f"{faker.user_name()}-{unique_suffix}"
     email = f"{username}@example.com"
-    nickname = faker.first_name()
+    nickname = f"{faker.first_name()}-{unique_suffix}"
     password = faker.password(length=10)
     return username, email, nickname, password
 
