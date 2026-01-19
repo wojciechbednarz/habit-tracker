@@ -39,14 +39,19 @@ jobs:
             - name: Lint code
               run: uv run just lint
 
-            - name: Type check code
-              run: uv run just typecheck
-
-            - name: Run pre-commit on all files
+            - name: Run pre-commit on all files (also including pytest)
               run: uv run pre-commit run --all-files
-
-            - name: Run pytest via just
-              run: just test
+              env:
+                DATABASE_URL: ${{ secrets.DATABASE_URL }}
+                POSTGRES_USER: ${{secrets.POSTGRES_USER }}
+                POSTGRES_PASSWORD: ${{secrets.POSTGRES_PASSWORD }}
+                POSTGRES_DB: ${{secrets.POSTGRES_DB }}
+                SECRET_KEY:  ${{secrets.SECRET_KEY }}
+                ENVIRONMENT: ${{secrets.ENVIRONMENT }}
+                ADMIN_USERNAME: ${{secrets.ADMIN_USERNAME }}
+                ADMIN_EMAIL: ${{secrets.ADMIN_EMAIL }}
+                ADMIN_PASSWORD: ${{secrets.ADMIN_PASSWORD }}
+                JWT_SECRET_KEY: ${{secrets.JWT_SECRET_KEY }}
 
     push_to_registry:
         name: Push Docker image to Docker Hub
