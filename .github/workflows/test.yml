@@ -45,6 +45,9 @@ jobs:
             - name: Run pre-commit on all files
               run: uv run pre-commit run --all-files
 
+            - name: Run pytest via just
+              run: just test
+
     push_to_registry:
         name: Push Docker image to Docker Hub
         runs-on: ubuntu-latest
