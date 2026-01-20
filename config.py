@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379"
+
     @classmethod
     @field_validator("JWT_SECRET_KEY", mode="before")
     def set_jwt_secret(cls, v: str | None, info: ValidationInfo) -> str | Any | None:

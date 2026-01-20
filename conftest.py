@@ -13,6 +13,8 @@ import pytest
 import pytest_asyncio
 from faker import Faker
 from fastapi.testclient import TestClient
+from redis.asyncio import Redis  # type: ignore[import-untyped]
+from redis.exceptions import RedisError  # type: ignore[import-untyped]
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -20,6 +22,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from testcontainers.postgres import PostgresContainer
+from testcontainers.redis import RedisContainer
 
 from src.api.main import app
 from src.api.v1.routers.dependencies import (
@@ -135,7 +138,10 @@ def api_client(
     """Test client with overridden dependencies."""
     app.dependency_overrides[get_user_manager] = lambda: async_user_manager
     app.dependency_overrides[get_habit_manager] = lambda: async_habit_manager
-    with patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock):
+    with (
+        patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock),
+        patch("src.api.main.CacheManager.initialize_redis", new_callable=AsyncMock),
+    ):
         with TestClient(app) as client:
             yield client
     app.dependency_overrides.clear()
@@ -223,7 +229,10 @@ def authenticated_as_user_api_client(
     )
     app.dependency_overrides[get_current_active_user] = mock_get_current_active_user
 
-    with patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock):
+    with (
+        patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock),
+        patch("src.api.main.CacheManager.initialize_redis", new_callable=AsyncMock),
+    ):
         with TestClient(app) as client:
             yield client
     app.dependency_overrides.clear()
@@ -243,7 +252,10 @@ def authenticated_as_admin_api_client(
     app.dependency_overrides[get_habit_manager] = lambda: async_habit_manager
     app.dependency_overrides[require_admin] = mock_require_admin
 
-    with patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock):
+    with (
+        patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock),
+        patch("src.api.main.CacheManager.initialize_redis", new_callable=AsyncMock),
+    ):
         with TestClient(app) as client:
             yield client
     app.dependency_overrides.clear()
@@ -305,6 +317,13 @@ def postgres_container() -> Generator[PostgresContainer]:
         yield postgres
 
 
+@pytest.fixture(scope="session")
+def redis_container() -> Generator[RedisContainer]:
+    """Creates a redis container"""
+    with RedisContainer("redis:8.4.0-alpine") as redis:
+        yield redis
+
+
 # ==================== ASYNC FIXTURES ====================
 
 
@@ -341,6 +360,28 @@ async def postgres_db_objects(
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
+
+
+@pytest_asyncio.fixture()
+async def redis_instance(redis_container: RedisContainer) -> AsyncGenerator[str]:
+    """Sets up redis connection URL."""
+    host = redis_container.get_container_host_ip()
+    port = redis_container.get_exposed_port(redis_container.port)
+    full_url = f"redis://{host}:{port}"
+    yield full_url
+
+
+@pytest_asyncio.fixture()
+async def redis_client(redis_instance: str) -> AsyncGenerator[Redis]:
+    """Sets up connection to Redis client"""
+    client = await Redis.from_url(redis_instance, decode_responses=True)
+    try:
+        await client.ping()
+    except RedisError as e:
+        pytest.fail(f"Failed to connect to Redis: {e}")
+    yield client
+    await client.flushall()
+    await client.close()
 
 
 @pytest_asyncio.fixture(scope="function")

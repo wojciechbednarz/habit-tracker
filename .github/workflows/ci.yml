@@ -1,7 +1,7 @@
 # This workflow will run unit tests and integration tests using pytest and then
 # build and push Docker image to the Docker Hub registry
 
-name: Python CI with pytest
+name: Python CI
 on:
     push:
         branches: [main]
@@ -42,6 +42,9 @@ jobs:
 
             - name: Run pre-commit on all files (also including pytest)
               run: uv run pre-commit run --all-files
+
+            - name: Run tests
+              run: uv run pytest
               env:
                 DATABASE_URL: ${{ secrets.DATABASE_URL }}
                 POSTGRES_USER: ${{secrets.POSTGRES_USER }}

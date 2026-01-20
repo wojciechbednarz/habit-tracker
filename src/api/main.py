@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from config import settings
 from src.api.v1.routers import admin, habits, security, users
+from src.core.cache import CacheManager
 from src.core.exception_handlers import register_exception_handlers
 from src.core.habit_async import AsyncUserManager
 from src.core.startup import ensure_admin_exists
@@ -19,6 +20,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
     user_manager = AsyncUserManager()
     await ensure_admin_exists(user_manager)
     await user_manager.service.async_db.async_engine.dispose()
+    cache = CacheManager()
+    await cache.initialize_redis()
     yield
 
 
