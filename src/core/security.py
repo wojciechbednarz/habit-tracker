@@ -21,6 +21,7 @@ def create_access_token(
     else:
         expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({"exp": int(expire.timestamp())})
+    assert settings.JWT_SECRET_KEY is not None, "JWT_SECRETS_KEY must be set"
     encoded_jwt: str = jwt.encode(
         to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
     )
@@ -42,6 +43,7 @@ def get_password_hash(password: str) -> str:
 def decode_token(token: str) -> dict[str, Any] | None:
     """Decodes JWT token"""
     try:
+        assert settings.JWT_SECRET_KEY is not None, "JWT_SECRETS_KEY must be set"
         decoded_token: dict[str, Any] = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )

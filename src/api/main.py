@@ -8,10 +8,13 @@ from fastapi import FastAPI
 
 from config import settings
 from src.api.v1.routers import admin, habits, security, users
-from src.core.cache import CacheManager
+from src.core.cache import RedisManager
 from src.core.exception_handlers import register_exception_handlers
 from src.core.habit_async import AsyncUserManager
 from src.core.startup import ensure_admin_exists
+from src.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
 
 
 @asynccontextmanager
@@ -20,9 +23,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
     user_manager = AsyncUserManager()
     await ensure_admin_exists(user_manager)
     await user_manager.service.async_db.async_engine.dispose()
-    cache = CacheManager()
-    await cache.initialize_redis()
+    cache = RedisManager()
+    await cache.initialize(settings.REDIS_URL)
+    app.state.redis_manager = cache
     yield
+    await cache.close()
+    logger.info("Redis connection closed")
 
 
 app = FastAPI(title=settings.APP_NAME, lifespan=lifespan)

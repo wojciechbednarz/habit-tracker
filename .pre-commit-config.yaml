@@ -21,11 +21,9 @@ repos:
           - psycopg2-binary
           - pydantic
           - pydantic-settings
-        args:
-          - --python-version=3.13
-          - --ignore-missing-imports
-          - --no-strict-optional
-          - --config-file=pyproject.toml
+          - types-redis
+          - redis
+        args: [--config-file=pyproject.toml]
         files: ^(src/|config\.py|conftest\.py|pyproject\.toml)
 
   # Pre-commit hooks for basic checks

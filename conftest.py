@@ -3,18 +3,19 @@
 import random
 import uuid
 from collections.abc import AsyncGenerator, Callable, Coroutine, Generator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from faker import Faker
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from redis.asyncio import Redis  # type: ignore[import-untyped]
-from redis.exceptions import RedisError  # type: ignore[import-untyped]
+from redis.asyncio import Redis, RedisError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -32,6 +33,7 @@ from src.api.v1.routers.dependencies import (
     get_user_manager,
     require_admin,
 )
+from src.core.cache import RedisManager
 from src.core.db import AsyncDatabase, SyncDatabase
 from src.core.habit import HabitManager, UserManager
 from src.core.habit_async import (
@@ -133,17 +135,20 @@ def user_manager(mock_sync_db: str) -> Generator[UserManager]:
 
 @pytest.fixture()
 def api_client(
-    async_user_manager: AsyncUserManager, async_habit_manager: AsyncHabitManager
+    async_user_manager: AsyncUserManager,
+    async_habit_manager: AsyncHabitManager,
+    test_lifespan: Callable[Redis],
 ) -> Generator[TestClient]:
-    """Test client with overridden dependencies."""
+    """
+    Test client with overridden dependencies and without user or admin authorization.
+    'test_lifespan' fixture handles RedisManager instance via lifespan events from
+    FastAPI.
+    """
+    app.router.lifespan_context = test_lifespan
     app.dependency_overrides[get_user_manager] = lambda: async_user_manager
     app.dependency_overrides[get_habit_manager] = lambda: async_habit_manager
-    with (
-        patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock),
-        patch("src.api.main.CacheManager.initialize_redis", new_callable=AsyncMock),
-    ):
-        with TestClient(app) as client:
-            yield client
+    with TestClient(app) as client:
+        yield client
     app.dependency_overrides.clear()
 
 
@@ -215,26 +220,24 @@ def mock_require_admin(
 def authenticated_as_user_api_client(
     async_user_manager: AsyncUserManager,
     async_habit_manager: AsyncHabitManager,
+    test_lifespan: Callable[Redis],
     mock_get_current_user_with_role: Callable[[], Coroutine[Any, Any, UserWithRole]],
     mock_get_current_active_user: Callable[[], Coroutine[Any, Any, User]],
 ) -> Generator[TestClient]:
     """
-    Test client with overridden dependencies.
-    Mocked ensure_admin_exists, to not call db for default admin creation.
+    Test client with overridden dependencies with user authorization.
+    'test_lifespan' fixture handles RedisManager instance via lifespan events from
+    FastAPI.
     """
+    app.router.lifespan_context = test_lifespan
     app.dependency_overrides[get_user_manager] = lambda: async_user_manager
     app.dependency_overrides[get_habit_manager] = lambda: async_habit_manager
     app.dependency_overrides[get_current_user_with_role] = (
         mock_get_current_user_with_role
     )
     app.dependency_overrides[get_current_active_user] = mock_get_current_active_user
-
-    with (
-        patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock),
-        patch("src.api.main.CacheManager.initialize_redis", new_callable=AsyncMock),
-    ):
-        with TestClient(app) as client:
-            yield client
+    with TestClient(app) as client:
+        yield client
     app.dependency_overrides.clear()
 
 
@@ -242,22 +245,20 @@ def authenticated_as_user_api_client(
 def authenticated_as_admin_api_client(
     async_user_manager: AsyncUserManager,
     async_habit_manager: AsyncHabitManager,
+    test_lifespan: Callable[Redis],
     mock_require_admin: Callable[[], Coroutine[Any, Any, UserWithRole]],
 ) -> Generator[TestClient]:
     """
-    Test client with overridden dependencies.
-    Mocked ensure_admin_exists, to not call db for default admin creation.
+    Test client with overridden dependencies authenticated as admin.
+    'test_lifespan' fixture handles RedisManager instance via lifespan events from
+    FastAPI.
     """
+    app.router.lifespan_context = test_lifespan
     app.dependency_overrides[get_user_manager] = lambda: async_user_manager
     app.dependency_overrides[get_habit_manager] = lambda: async_habit_manager
     app.dependency_overrides[require_admin] = mock_require_admin
-
-    with (
-        patch("src.api.main.ensure_admin_exists", new_callable=AsyncMock),
-        patch("src.api.main.CacheManager.initialize_redis", new_callable=AsyncMock),
-    ):
-        with TestClient(app) as client:
-            yield client
+    with TestClient(app) as client:
+        yield client
     app.dependency_overrides.clear()
 
 
@@ -271,7 +272,6 @@ def create_user_entity(
         """Create a UserBase entity with optional overrides."""
         username, email, nickname, password = fake_user_data_factory()
         password_value = kwargs.get("password", password)
-        # Ensure password_value is a string
         if not isinstance(password_value, str):
             raise ValueError("Password must be a string")
 
@@ -324,6 +324,35 @@ def redis_container() -> Generator[RedisContainer]:
         yield redis
 
 
+# @pytest.fixture(scope="function")
+# def test_lifespan(redis_manager: RedisManager) -> Callable:
+#     """Factory that creates a test lifespan context manager."""
+#     @asynccontextmanager
+#     async def _test_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+#         """Test lifespan that uses test Redis."""
+#         app.state.redis_manager = redis_manager
+#         yield
+#     return _test_lifespan
+
+
+@pytest.fixture()
+def test_lifespan(redis_instance: str) -> Callable[[FastAPI], Any]:
+    """Factory that creates a test lifespan context manager. test_habit_api.py usage"""
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+        """Test lifespan that uses test Redis."""
+        redis_client = await Redis.from_url(redis_instance, decode_responses=True)
+        manager = RedisManager()
+        await manager.initialize(redis_instance)
+        app.state.redis_manager = manager
+        yield
+        await manager.close()
+        await redis_client.aclose()  # type: ignore[attr-defined]
+
+    return lifespan
+
+
 # ==================== ASYNC FIXTURES ====================
 
 
@@ -364,7 +393,7 @@ async def postgres_db_objects(
 
 @pytest_asyncio.fixture()
 async def redis_instance(redis_container: RedisContainer) -> AsyncGenerator[str]:
-    """Sets up redis connection URL."""
+    """Sets up redis connection URL. test_cache_redis.py usage"""
     host = redis_container.get_container_host_ip()
     port = redis_container.get_exposed_port(redis_container.port)
     full_url = f"redis://{host}:{port}"
@@ -372,8 +401,8 @@ async def redis_instance(redis_container: RedisContainer) -> AsyncGenerator[str]
 
 
 @pytest_asyncio.fixture()
-async def redis_client(redis_instance: str) -> AsyncGenerator[Redis]:
-    """Sets up connection to Redis client"""
+async def redis_client(redis_instance: str) -> AsyncGenerator[Redis[str]]:
+    """Sets up connection to Redis client. test_cache_redis.py usage"""
     client = await Redis.from_url(redis_instance, decode_responses=True)
     try:
         await client.ping()
@@ -382,6 +411,13 @@ async def redis_client(redis_instance: str) -> AsyncGenerator[Redis]:
     yield client
     await client.flushall()
     await client.close()
+
+
+@pytest_asyncio.fixture()
+async def cache_manager(redis_client: Redis[str]) -> AsyncGenerator[RedisManager]:
+    """Creates a RedisManager instance and uses Redis client from testcontainers"""
+    cache = RedisManager(redis_client)
+    yield cache
 
 
 @pytest_asyncio.fixture(scope="function")

@@ -1,6 +1,6 @@
 """Habit-related API endpoints."""
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,7 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from src.api.v1.routers.dependencies import (
     get_current_active_user,
     get_habit_manager,
+    get_redis_manager,
 )
+from src.core.cache import RedisKeys, RedisManager
 from src.core.habit_async import AsyncHabitManager
 from src.core.schemas import HabitCreate, HabitResponse, HabitUpdate, User
 
@@ -19,9 +21,24 @@ router = APIRouter(prefix="/api/habits", tags=["habits"])
 async def get_all_habits(
     habit_manager: Annotated[AsyncHabitManager, Depends(get_habit_manager)],
     current_user: Annotated[User, Depends(get_current_active_user)],
-) -> list[HabitResponse]:
+    redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
+) -> list[HabitResponse] | Any:
     """Gets all habits list by sending a GET request"""
+    key = RedisKeys.user_habits_cache_key(current_user.user_id)
+    cached_habits = await redis_cache.service.get_object(key)
+    if cached_habits:
+        return cached_habits
     habits = await habit_manager.get_all_habits_for_user(current_user.user_id)
+    habits_data = [
+        {
+            **habit.model_dump(),
+            "id": str(habit.id),
+            "user_id": str(habit.user_id),
+            "created_at": str(habit.created_at),
+        }
+        for habit in habits
+    ]
+    await redis_cache.service.set_object(key, habits_data)
     return habits
 
 
@@ -48,6 +65,7 @@ async def delete_habit(
     habit_id: UUID,
     habit_manager: Annotated[AsyncHabitManager, Depends(get_habit_manager)],
     current_user: Annotated[User, Depends(get_current_active_user)],
+    redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
 ) -> None:
     """Delete a specific habit by ID"""
     habit = await habit_manager.get_specific_habit(habit_id)
@@ -61,25 +79,31 @@ async def delete_habit(
     success = await habit_manager.delete_habit(habit_id)
     if not success:
         raise HTTPException(status_code=404, detail="Habit not found")
+    list_key = RedisKeys.user_habits_cache_key(current_user.user_id)
+    await redis_cache.service.delete_object(list_key)
 
 
 @router.delete("/", status_code=204)
 async def delete_habits(
     habit_manager: Annotated[AsyncHabitManager, Depends(get_habit_manager)],
     current_user: Annotated[User, Depends(get_current_active_user)],
+    redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
 ) -> None:
     """Deletes all habits for a user by sending a DELETE request"""
     await habit_manager.delete_habits(current_user.user_id)
+    key = RedisKeys.user_habits_cache_key(current_user.user_id)
+    await redis_cache.service.delete_object(key)
 
 
-@router.put("/{habit_id}")
+@router.patch("/{habit_id}")
 async def update_habit(
     habit_id: UUID,
     updates: HabitUpdate,
     habit_manager: Annotated[AsyncHabitManager, Depends(get_habit_manager)],
     current_user: Annotated[User, Depends(get_current_active_user)],
+    redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
 ) -> dict[str, str]:
-    """Updates a habit by sending a PUT request"""
+    """Updates a habit by sending a PATCH request"""
     habit = await habit_manager.get_specific_habit(habit_id)
     if not habit:
         raise HTTPException(status_code=404, detail="Habit not found")
@@ -91,6 +115,8 @@ async def update_habit(
     success = await habit_manager.update_habit(updates, habit_id)
     if not success:
         raise HTTPException(status_code=404, detail="Habit not found")
+    list_key = RedisKeys.user_habits_cache_key(current_user.user_id)
+    await redis_cache.service.delete_object(list_key)
     return {"message": "Habit updated successfully"}
 
 
@@ -99,6 +125,7 @@ async def create_habit(
     habit: HabitCreate,
     habit_manager: Annotated[AsyncHabitManager, Depends(get_habit_manager)],
     current_user: Annotated[User, Depends(get_current_active_user)],
+    redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
 ) -> dict[str, str]:
     """Creates a habit by sending a POST request"""
     new_habit = await habit_manager.add_habit(
@@ -107,4 +134,6 @@ async def create_habit(
         description=habit.description,
         frequency=habit.frequency,
     )
+    list_key = RedisKeys.user_habits_cache_key(current_user.user_id)
+    await redis_cache.service.delete_object(list_key)
     return {"message": "Habit created", "id": f"{new_habit.id}"}

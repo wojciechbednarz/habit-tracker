@@ -40,7 +40,7 @@ jobs:
             - name: Lint code
               run: uv run just lint
 
-            - name: Run pre-commit on all files (also including pytest)
+            - name: Run pre-commit on all files
               run: uv run pre-commit run --all-files
 
             - name: Run tests
@@ -78,7 +78,28 @@ jobs:
               with:
                 images: wojslaw/habit-tracker
 
-            - name: Build and push Docker image
+            - name: Build Docker image
+              id: image
+              uses: docker/build-push-action@v6
+              with:
+                context: .
+                file: ./Dockerfile
+                push: false
+                load: true
+                tags: ${{ steps.meta.outputs.tags }}
+                labels: ${{ steps.meta.outputs.labels }}
+
+            - name: Run Trivy vulnerability scanner
+              uses: aquasecurity/trivy-action@0.33.1
+              with:
+                image-ref: ${{ steps.meta.outputs.tags }}
+                format: 'table'
+                exit-code: '1'
+                ignore-unfixed: true
+                vuln-type: 'os,library'
+                severity: 'CRITICAL,HIGH'
+
+            - name: Push Docker image
               id: push
               uses: docker/build-push-action@v6
               with:

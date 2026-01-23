@@ -1,4 +1,7 @@
-"""Unit tests testing API endpoints related to habit-tracker app"""
+"""
+Integration tests testing API endpoints related to habit-tracker app using temporary
+SQlite database and redis with testcontainers.
+"""
 
 from collections.abc import AsyncGenerator
 from typing import cast

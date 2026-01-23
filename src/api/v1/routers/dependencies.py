@@ -1,8 +1,8 @@
 """Dependency injection for API routers."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 
@@ -25,6 +25,11 @@ async def get_user_manager() -> AsyncUserManager:
 async def get_habit_manager() -> AsyncHabitManager:
     """Returns habit manager class  for dependency injection"""
     return AsyncHabitManager()
+
+
+async def get_redis_manager(request: Request) -> Any:
+    """Returns redis manager class for dependency injection"""
+    return request.app.state.redis_manager
 
 
 async def authenticate_user(
