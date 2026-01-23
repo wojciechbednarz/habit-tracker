@@ -13,32 +13,20 @@ from src.api.v1.routers.dependencies import (
 from src.core.cache import RedisKeys, RedisManager
 from src.core.habit_async import AsyncHabitManager
 from src.core.schemas import HabitCreate, HabitResponse, HabitUpdate, User
+from src.utils.decorators import cache_habits_response
 
 router = APIRouter(prefix="/api/habits", tags=["habits"])
 
 
 @router.get("/")
+@cache_habits_response(ttl=60)
 async def get_all_habits(
     habit_manager: Annotated[AsyncHabitManager, Depends(get_habit_manager)],
     current_user: Annotated[User, Depends(get_current_active_user)],
     redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
 ) -> list[HabitResponse] | Any:
     """Gets all habits list by sending a GET request"""
-    key = RedisKeys.user_habits_cache_key(current_user.user_id)
-    cached_habits = await redis_cache.service.get_object(key)
-    if cached_habits:
-        return cached_habits
     habits = await habit_manager.get_all_habits_for_user(current_user.user_id)
-    habits_data = [
-        {
-            **habit.model_dump(),
-            "id": str(habit.id),
-            "user_id": str(habit.user_id),
-            "created_at": str(habit.created_at),
-        }
-        for habit in habits
-    ]
-    await redis_cache.service.set_object(key, habits_data)
     return habits
 
 

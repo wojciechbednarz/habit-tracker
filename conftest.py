@@ -137,7 +137,7 @@ def user_manager(mock_sync_db: str) -> Generator[UserManager]:
 def api_client(
     async_user_manager: AsyncUserManager,
     async_habit_manager: AsyncHabitManager,
-    test_lifespan: Callable[Redis],
+    test_lifespan: Callable[[Redis], ...],  # type: ignore[type-arg]
 ) -> Generator[TestClient]:
     """
     Test client with overridden dependencies and without user or admin authorization.
@@ -220,7 +220,7 @@ def mock_require_admin(
 def authenticated_as_user_api_client(
     async_user_manager: AsyncUserManager,
     async_habit_manager: AsyncHabitManager,
-    test_lifespan: Callable[Redis],
+    test_lifespan: Callable[[Redis], ...],  # type: ignore[type-arg]
     mock_get_current_user_with_role: Callable[[], Coroutine[Any, Any, UserWithRole]],
     mock_get_current_active_user: Callable[[], Coroutine[Any, Any, User]],
 ) -> Generator[TestClient]:
@@ -245,7 +245,7 @@ def authenticated_as_user_api_client(
 def authenticated_as_admin_api_client(
     async_user_manager: AsyncUserManager,
     async_habit_manager: AsyncHabitManager,
-    test_lifespan: Callable[Redis],
+    test_lifespan: Callable[[Redis], ...],  # type: ignore[type-arg]
     mock_require_admin: Callable[[], Coroutine[Any, Any, UserWithRole]],
 ) -> Generator[TestClient]:
     """
@@ -401,7 +401,7 @@ async def redis_instance(redis_container: RedisContainer) -> AsyncGenerator[str]
 
 
 @pytest_asyncio.fixture()
-async def redis_client(redis_instance: str) -> AsyncGenerator[Redis[str]]:
+async def redis_client(redis_instance: str) -> AsyncGenerator[Redis]:  # type: ignore[type-arg]
     """Sets up connection to Redis client. test_cache_redis.py usage"""
     client = await Redis.from_url(redis_instance, decode_responses=True)
     try:
@@ -414,7 +414,7 @@ async def redis_client(redis_instance: str) -> AsyncGenerator[Redis[str]]:
 
 
 @pytest_asyncio.fixture()
-async def cache_manager(redis_client: Redis[str]) -> AsyncGenerator[RedisManager]:
+async def cache_manager(redis_client: Redis) -> AsyncGenerator[RedisManager]:  # type: ignore[type-arg]
     """Creates a RedisManager instance and uses Redis client from testcontainers"""
     cache = RedisManager(redis_client)
     yield cache

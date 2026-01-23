@@ -18,6 +18,8 @@ A REST API and command-line application for tracking daily habits with per-user 
 - **Repository pattern** for data access layer
 - **Security features** password hashing (pwdlib), JWT tokens
 - **Containerization** with Docker containers
+- **Redis caching** for improved performance
+- **Security** with Trivy Docker image scanning
 
 ## Requirements
 
@@ -35,6 +37,8 @@ A REST API and command-line application for tracking daily habits with per-user 
 - pytest 8.4.2+ - Testing framework
 - Ruff 0.14.4+ - Linting and formatting
 - mypy 1.18.2+ - Type checking
+- redis 7.1.0+ - Redis client
+- testcontainers 4.14.0+ - Testing with containers
 
 ## Installation
 

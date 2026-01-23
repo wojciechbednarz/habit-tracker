@@ -14,6 +14,7 @@ dependencies = [
     "faker>=38.2.0",
     "fastapi[standard]>=0.121.1",
     "httpx>=0.28.1",
+    "pipdeptree>=2.30.0",
     "pre-commit>=4.3.0",
     "psycopg2-binary>=2.9.11",
     "pwdlib>=0.3.0",
@@ -29,6 +30,7 @@ dependencies = [
     "testcontainers[postgres,redis]>=4.14.0",
     "types-redis>=4.6.0.20241004",
     "uvicorn>=0.38.0",
+    "urllib3>=2.6.3",
 ]
 
 [project.optional-dependencies]

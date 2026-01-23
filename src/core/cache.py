@@ -35,12 +35,14 @@ class RedisService:
         self.redis = redis
         self.default_ttl = 3600
 
-    async def set_object(self, key: str, data: Any) -> None:
+    async def set_object(self, key: str, data: Any, ttl: int | None = None) -> None:
         """Sets key and value pair in redis server"""
         if self.redis is None:
             raise RuntimeError("Redis instance is not initialized")
         logger.info(f"Setting cache for key: {key}")
-        await self.redis.set(key, json.dumps(data), ex=self.default_ttl)
+        await self.redis.set(
+            key, json.dumps(data), ex=self.default_ttl if not ttl else ttl
+        )
 
     async def get_object(self, key: str) -> Any | None:
         """Gets value for a key from redis server"""
