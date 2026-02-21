@@ -48,11 +48,18 @@ class AWSSessionManager:
         """
         logger.info(f"Creating aioboto3 session for environment: {environment}")
         configs = {
-            "dev": {"region_name": settings.AWS_REGION},
-            "prod": {"region_name": settings.AWS_REGION},
+            "dev": {
+                "region_name": settings.AWS_REGION,
+                "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
+                "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
+            },
+            "prod": {
+                "region_name": settings.AWS_REGION,
+                "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
+                "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
+            },
         }
-        config = configs[environment]
-        logger.debug(f"AWS client config: {config}")
+        config = configs.get(environment, configs["dev"])
         return Session(**config)
 
 
