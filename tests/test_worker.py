@@ -29,7 +29,7 @@ def test_parse_message_valid_message() -> None:
     msg_body = json.loads(SQS_VALID_MESSAGE["Body"])
     msg_user_id = msg_body["user_id"]
     msg_receipt_handle = SQS_VALID_MESSAGE["ReceiptHandle"]
-    assert parsed_message == (msg_user_id, msg_receipt_handle)
+    assert parsed_message == (UUID(msg_user_id), msg_receipt_handle)
 
 
 def test_parse_message_missing_body() -> None:
@@ -150,14 +150,16 @@ async def test_process_message(app_container: AppContainer) -> None:
 
     fake_pdf = b"%PDF-1.4 fake pdf content"
 
+    app_container.user_repo.get_by_id.return_value = MagicMock(email="test@example.com")
     user_id = json.loads(SQS_VALID_MESSAGE["Body"])["user_id"]
+    app_container.user_repo.get_by_id = AsyncMock(return_value=MagicMock(email="test@example.com"))
     app_container.report_service.calculate_weekly_stats = AsyncMock()
     app_container.report_service.calculate_weekly_stats.return_value = fake_report
     app_container.report_service.render_html_report.return_value = fake_html
     app_container.pdf_generator.create_pdf_buffer.return_value = fake_pdf
 
     await process_message(app_container, SQS_VALID_MESSAGE)
-    app_container.report_service.calculate_weekly_stats.assert_awaited_once_with(user_id)
+    app_container.report_service.calculate_weekly_stats.assert_awaited_once_with(UUID(user_id))
     app_container.report_service.render_html_report.assert_called_once_with(fake_report)
     app_container.pdf_generator.create_pdf_buffer.assert_called_once_with(fake_html)
     app_container.s3_client.upload_file_to_bucket.assert_awaited_once()

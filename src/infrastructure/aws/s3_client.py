@@ -42,9 +42,9 @@ class S3Client:
         :return: True if bucket exists, else False
         """
         bucket_list = await self.get_bucket_list()
-        if bucket_list is None:
+        if bucket_list is None or "Buckets" not in bucket_list:
             return False
-        for bucket in typing.cast(list[dict[str, Any]], bucket_list):
+        for bucket in bucket_list["Buckets"]:
             if bucket_name == bucket["Name"]:
                 return True
         return False
@@ -69,13 +69,12 @@ class S3Client:
                     await client.create_bucket(Bucket=bucket_name, CreateBucketConfiguration=location_config)
                 logger.info(f"Bucket {bucket_name} created successfully in {self.session_manager.region}.")
             return True
-        except Exception as e:  # Catch all for safety
-            logger.error(f"Error: {e}")
-            return False
-            return False
         except ClientError as e:
             logger.error(f"Error encountered during bucket creation: {e}")
-            raise RuntimeError("Creating S3 bucket not successful") from e
+            return False
+        except Exception as e:
+            logger.error(f"General error during bucket creation: {e}")
+            return False
 
     async def delete_bucket(self, bucket_name: str) -> bool:
         """Deletes the S3 bucket"""
@@ -84,7 +83,7 @@ class S3Client:
             async with self.session_manager.session.client("s3", region_name=self.session_manager.region) as client:
                 response = await client.delete_bucket(Bucket=bucket_name)
             logger.info(f"Response: {response}")
-            return False
+            return True
         except ClientError as e:
             logger.error(f"Error encountered during deleting a bucket: {e}")
             raise RuntimeError(f"Deleting S3 bucket {bucket_name} not successful") from e
@@ -116,7 +115,6 @@ class S3Client:
                 )
                 logger.info(f"Response: {response}")
                 return typing.cast(dict[str, Any], response)
-            return False
         except ClientError as e:
             logger.error(f"Error encountered during getting an object: {e}")
             raise RuntimeError(f"Retrieving object {key} from S3 bucket {bucket_name} not successful") from e
@@ -139,7 +137,7 @@ class S3Client:
             buffer.seek(0)
             async with self.session_manager.session.client("s3", region_name=self.session_manager.region) as client:
                 await client.upload_fileobj(buffer, bucket_name, key)
-            return False
+            return True
         except ClientError as e:
             logger.error(f"Error encountered during uploading file to a bucket: {e}")
             return False

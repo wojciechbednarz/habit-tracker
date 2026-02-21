@@ -1,6 +1,5 @@
 """Integration tests for the OllamaClient class in the habit-tracker application."""
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -11,18 +10,22 @@ from src.core.schemas import HabitAdvice
 from src.infrastructure.ai.ollama_client import OllamaClient
 
 
-async def is_ollama_online() -> bool:
+# Check Ollama availability once at import time
+def _check_ollama() -> bool:
+    """Synchronously check if Ollama is available."""
     try:
-        async with httpx.AsyncClient() as client:
-            res = await client.get("http://localhost:11434")
-            return res.status_code == 200
+        response = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
+        return response.status_code == 200
     except Exception:
         return False
 
 
+OLLAMA_AVAILABLE = _check_ollama()
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
-@pytest.mark.skipif(not asyncio.run(is_ollama_online()), reason="Ollama is not running")
+@pytest.mark.skipif(not OLLAMA_AVAILABLE, reason="Ollama is not available")
 async def test_get_habit_advice() -> None:
     """
     Test the get_habit_advice method of the OllamaClient class.
