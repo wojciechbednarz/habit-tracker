@@ -20,7 +20,7 @@ testdata = [
 
 @pytest.mark.unit
 @pytest.mark.parametrize("habit", testdata)
-def test_habit_history_init(habit):
+def test_habit_history_init(habit: dict[str, str]) -> None:
     """Test initialization of HabitHistory with habits."""
     habit_obj = HabitBase(
         id=uuid4(),
@@ -36,7 +36,7 @@ def test_habit_history_init(habit):
 
 @pytest.mark.unit
 @pytest.mark.parametrize("habit", testdata)
-def test_habit_history_len(habit):
+def test_habit_history_len(habit: dict[str, str]) -> None:
     """Test length of HabitHistory."""
     habit1 = HabitBase(
         id=uuid4(),
@@ -67,7 +67,7 @@ def test_habit_history_len(habit):
 
 @pytest.mark.unit
 @pytest.mark.parametrize("habit", testdata)
-def test_habit_history_getitem(habit):
+def test_habit_history_getitem(habit: dict[str, str]) -> None:
     """Test getting habit by index from HabitHistory."""
     habit_obj = HabitBase(
         id=uuid4(),

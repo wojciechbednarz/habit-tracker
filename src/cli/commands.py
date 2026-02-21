@@ -32,9 +32,7 @@ def cli(ctx: click.Context) -> None:
             email = input("Email address: ").strip()
             nickname = input("Nickname: ").strip()
             password = getpass("Password: ").strip()
-            user = user_manager.create_user(
-                username=username, email=email, nickname=nickname, password=password
-            )
+            user = user_manager.create_user(username=username, email=email, nickname=nickname, password=password)
     ctx.obj["user_id"] = user.user_id
     ctx.obj["email"] = user.email
 
@@ -53,11 +51,7 @@ def interactive(ctx: click.Context) -> None:
             habit_name = input("Habit name: ").strip()
             habit_description = input("Habit description: ").strip()
             habit_frequency = input("Habit frequency: ").strip()
-            click.echo(
-                tracker.add_habit(
-                    habit_name, habit_description, habit_frequency, ctx.obj["email"]
-                )
-            )
+            click.echo(tracker.add_habit(habit_name, habit_description, habit_frequency, ctx.obj["email"]))
 
         elif command == "complete":
             habit_name = input("Habit name: ").strip()

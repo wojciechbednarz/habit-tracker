@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SQS Queue for Habit Reports
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  HabitReportQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 345600
+      QueueName: habit-reports-queue
+      ReceiveMessageWaitTimeSeconds: 20
+      Tags:
+        - Key: Project
+          Value: habit-tracker
+        - Key: Environment
+          Value: Dev
+      VisibilityTimeout: 30
+
+Outputs:
+  ReportQueueUrl:
+    Value: !Ref HabitReportQueue
+    Export:
+      Name: !Sub "${AWS::StackName}-ReportQueueUrl"

@@ -40,9 +40,7 @@ class RedisService:
         if self.redis is None:
             raise RuntimeError("Redis instance is not initialized")
         logger.info(f"Setting cache for key: {key}")
-        await self.redis.set(
-            key, json.dumps(data), ex=self.default_ttl if not ttl else ttl
-        )
+        await self.redis.set(key, json.dumps(data), ex=self.default_ttl if not ttl else ttl)
 
     async def get_object(self, key: str) -> Any | None:
         """Gets value for a key from redis server"""
@@ -94,9 +92,7 @@ class RedisManager:
         """Intializes redis cache memory."""
         try:
             logger.info("Initializing Redis...")
-            self.redis = await Redis.from_url(
-                redis_url, decode_responses=True, encoding="utf-8"
-            )
+            self.redis = await Redis.from_url(redis_url, decode_responses=True, encoding="utf-8")
             self.service = RedisService(self.redis)
             ping = await self.redis.ping()
             logger.info("Redis initialized and connected successfully.")

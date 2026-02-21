@@ -21,9 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column(
-        "users", sa.Column("role", sa.String(20), nullable=False, server_default="user")
-    )
+    op.add_column("users", sa.Column("role", sa.String(20), nullable=False, server_default="user"))
 
 
 def downgrade() -> None:

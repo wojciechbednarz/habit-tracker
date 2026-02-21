@@ -6,11 +6,18 @@ WORKDIR /app
 ENV UV_LINK_MODE=copy
 
 # Install system dependencies for psycopg2
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y bash \
     build-essential \
     libpq-dev \
     curl \
     git \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    libcairo2 \
+    postgresql-client \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy uv binary

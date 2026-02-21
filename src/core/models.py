@@ -35,9 +35,8 @@ class HabitBase(Base):
     description = Column(VARCHAR, nullable=False)
     frequency = Column(VARCHAR, nullable=False)
     mark_done = Column(Boolean, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    tags = Column(VARCHAR, nullable=True)
 
     def __repr__(self) -> str:
         return f"Habit(name={self.name}, description={self.description}, \
@@ -54,9 +53,7 @@ class UserBase(Base):
     username = Column(VARCHAR, nullable=False, unique=True)
     email = Column(VARCHAR(60), unique=True, nullable=False)
     nickname = Column(VARCHAR(50), nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     disabled = Column(Boolean, nullable=False, default=False)
     hashed_password = Column(VARCHAR, nullable=False)
     role = Column(String(20), nullable=False, default=UserRole.USER)
@@ -70,9 +67,7 @@ class UserBase(Base):
 
     def to_dict(self) -> dict[str, Any]:
         """Transform database specific data to dictionary"""
-        return {
-            column.key: getattr(self, column.key) for column in self.__table__.columns
-        }
+        return {column.key: getattr(self, column.key) for column in self.__table__.columns}
 
 
 class HabitCompletion(Base):
@@ -82,6 +77,4 @@ class HabitCompletion(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     habit_id = Column(UUID(as_uuid=True), ForeignKey("habits.id"))
-    completed_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    completed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

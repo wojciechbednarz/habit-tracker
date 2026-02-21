@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        body { font-family: sans-serif; }
+        .habit-card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        .status-active { color: green; }
+        .status-missed { color: red; }
+         </style>
+    <title>Weekly Habit Report</title>
+</head>
+<body>
+    <h1>Weekly Habit Report</h1>
+    <p>Range: {{ start_date.strftime('%b %d, %Y') }} to {{ end_date.strftime('%b %d, %Y') }}</p>
+
+    {% for habit in habits %}
+    <div class="habit-card">
+        <h3>{{ habit.name }}</h3>
+        <p>Total completions: {{ habit.total }}</p>
+        <p>Days: {{ habit.days }}</p>
+        <p>Status: <span class="status-{{ habit.status | lower }}"> {{ habit.status }}</span></p>
+    </div>
+    {% endfor %}
+
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 """Repository pattern methods for a user"""
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import Any, TypeVar
 from uuid import UUID
 
@@ -22,18 +22,32 @@ logger = setup_logger(__name__)
 T = TypeVar("T")
 
 
-class IUserRespository(BaseRepository[UserBase]):
-    """Extension class for additional user methods"""
+class UserGetRepository(ABC):
+    """Repository interface for fetching user entities"""
 
     @abstractmethod
-    async def get_by_email(self, email: str) -> T | None:
-        """Gets entity using email address"""
+    async def get_by_email(self, email: str) -> UserBase | None:
+        """Gets the user entity from the database using e-mail address."""
         pass
 
     @abstractmethod
-    async def get_by_username(self, username: str) -> T | None:
-        """Gets entity using username"""
+    async def get_by_username(self, username: str) -> UserBase | None:
+        """Gets the user entity from the database using username."""
         pass
+
+    @abstractmethod
+    async def get_by_id(self, user_id: UUID) -> UserBase | None:
+        """Gets the user entity from the database using user ID."""
+        pass
+
+    @abstractmethod
+    async def get_all(self) -> list[UserBase]:
+        """Fetches all the users entities from the database. Admin usage only."""
+        pass
+
+
+class UserExistsRepository(ABC):
+    """Repository interface for checking existence of user entities"""
 
     @abstractmethod
     async def exists_by_email(self, email: str) -> bool:
@@ -46,7 +60,13 @@ class IUserRespository(BaseRepository[UserBase]):
         pass
 
 
-class UserRepository(BaseRepository[UserBase]):
+class IUserRespository(BaseRepository[UserBase], UserGetRepository, UserExistsRepository):
+    """Extension class for additional user methods"""
+
+    pass
+
+
+class UserRepository(IUserRespository):
     """Handles database operations for User entities using SQLAlchemy ORM."""
 
     def __init__(self, async_session_maker: async_sessionmaker[AsyncSession]) -> None:
@@ -64,19 +84,14 @@ class UserRepository(BaseRepository[UserBase]):
         except IntegrityError as e:
             logger.error(f"User {entity.username} already exists: {e}")
             raise UserAlreadyExistsException(
-                f"User with username '{entity.username}' or email '{entity.email}' "
-                f"already exists"
+                f"User with username '{entity.username}' or email '{entity.email}' already exists"
             ) from e
         except SQLAlchemyError as e:
             logger.error(f"Database error while adding user {entity.username}: {e}")
-            raise DatabaseException(
-                f"Failed to add user {entity.username}: {str(e)}"
-            ) from e
+            raise DatabaseException(f"Failed to add user {entity.username}: {str(e)}") from e
         except Exception as e:
             logger.error(f"Unexpected error while adding user {entity.username}: {e}")
-            raise DatabaseException(
-                f"Unexpected error while adding user: {str(e)}"
-            ) from e
+            raise DatabaseException(f"Unexpected error while adding user: {str(e)}") from e
 
     async def delete(self, entity_id: UUID) -> bool:
         """Performs delete of the user entity from the database."""
@@ -93,23 +108,15 @@ class UserRepository(BaseRepository[UserBase]):
             except UserNotFoundException:
                 raise
             except Exception as e:
-                logger.error(
-                    f"Unexpected error while deleting user by ID {entity_id}: {e}"
-                )
-                raise DatabaseException(
-                    f"Unexpected error while deleting user by ID {entity_id}: {str(e)}"
-                ) from e
+                logger.error(f"Unexpected error while deleting user by ID {entity_id}: {e}")
+                raise DatabaseException(f"Unexpected error while deleting user by ID {entity_id}: {str(e)}") from e
 
     async def update(self, entity_id: UUID, params: dict[str, Any]) -> bool:
         """Performs update of the user entity in the database."""
         logger.info(f"Updating user with user ID: {entity_id}")
         async with self.async_session_maker() as session:
             try:
-                query = (
-                    update(UserBase)
-                    .where(UserBase.user_id == entity_id)
-                    .values(**params)
-                )
+                query = update(UserBase).where(UserBase.user_id == entity_id).values(**params)
                 result = await session.execute(query)
                 await session.commit()
                 updated: bool = bool(result.rowcount) > 0  # type: ignore[attr-defined]
@@ -124,12 +131,8 @@ class UserRepository(BaseRepository[UserBase]):
                 raise DatabaseException(f"Failed to update user: {str(e)}") from e
             except Exception as e:
                 await session.rollback()
-                logger.error(
-                    f"Unexpected error while updating user by ID {entity_id}: {e}"
-                )
-                raise DatabaseException(
-                    f"Unexpected error while updating user by ID {entity_id}: {str(e)}"
-                ) from e
+                logger.error(f"Unexpected error while updating user by ID {entity_id}: {e}")
+                raise DatabaseException(f"Unexpected error while updating user by ID {entity_id}: {str(e)}") from e
 
     async def get_by_email(self, email: str) -> UserBase | None:
         """Gets the user entity from the database using e-mail address."""
@@ -142,20 +145,14 @@ class UserRepository(BaseRepository[UserBase]):
                 if user:
                     logger.info(f"Fetched user: {user}")
                 else:
-                    logger.warning(
-                        f"User with provided e-mail address {email} not found."
-                    )
+                    logger.warning(f"User with provided e-mail address {email} not found.")
                 return user
         except SQLAlchemyError as e:
             logger.error(f"Database error while fetching user by email {email}: {e}")
-            raise DatabaseException(
-                f"Failed to fetch user by email {email}: {str(e)}"
-            ) from e
+            raise DatabaseException(f"Failed to fetch user by email {email}: {str(e)}") from e
         except Exception as e:
             logger.error(f"Unexpected error while fetching user by email {email}: {e}")
-            raise DatabaseException(
-                f"Unexpected error while fetching user by email: {str(e)}"
-            ) from e
+            raise DatabaseException(f"Unexpected error while fetching user by email: {str(e)}") from e
 
     async def get_by_username(self, username: str) -> UserBase | None:
         """Gets the user entity from the database using username."""
@@ -166,21 +163,13 @@ class UserRepository(BaseRepository[UserBase]):
                 user = result.scalar_one_or_none()
                 return user
         except SQLAlchemyError as e:
-            logger.error(
-                f"Database error while fetching user by username {username}: {e}"
-            )
-            raise DatabaseException(
-                f"Failed to fetch user by username {username}: {str(e)}"
-            ) from e
+            logger.error(f"Database error while fetching user by username {username}: {e}")
+            raise DatabaseException(f"Failed to fetch user by username {username}: {str(e)}") from e
         except UserNotFoundException:
             raise
         except Exception as e:
-            logger.error(
-                f"Unexpected error while fetching user by username {username}: {e}"
-            )
-            raise DatabaseException(
-                f"Unexpected error while fetching user by username: {str(e)}"
-            ) from e
+            logger.error(f"Unexpected error while fetching user by username {username}: {e}")
+            raise DatabaseException(f"Unexpected error while fetching user by username: {str(e)}") from e
 
     async def get_by_id(self, user_id: UUID) -> UserBase | None:
         """Gets the user entity from the database using user ID."""
@@ -192,26 +181,12 @@ class UserRepository(BaseRepository[UserBase]):
                 return user
         except SQLAlchemyError as e:
             logger.error(f"Database error while fetching user by ID {user_id}: {e}")
-            raise DatabaseException(
-                f"Failed to fetch user by ID {user_id}: {str(e)}"
-            ) from e
+            raise DatabaseException(f"Failed to fetch user by ID {user_id}: {str(e)}") from e
         except UserNotFoundException:
             raise
         except Exception as e:
             logger.error(f"Unexpected error while fetching user by ID {user_id}: {e}")
-            raise DatabaseException(
-                f"Unexpected error while fetching user by ID: {str(e)}"
-            ) from e
-
-    async def exists_by_email(self, email: str) -> bool:
-        """Check if user entity exists by email."""
-        user = await self.get_by_email(email)
-        return user is not None
-
-    async def exists_by_username(self, username: str) -> bool:
-        """Check if user entity exists by username."""
-        user = await self.get_by_username(username)
-        return user is not None
+            raise DatabaseException(f"Unexpected error while fetching user by ID: {str(e)}") from e
 
     async def get_all(self) -> list[UserBase]:
         """Fetches all the users entities from the database. Admin usage only."""
@@ -226,6 +201,14 @@ class UserRepository(BaseRepository[UserBase]):
                 raise DatabaseException(f"Failed to fetch all users: {str(e)}") from e
             except Exception as e:
                 logger.error(f"Unexpected error while fetching all users: {e}")
-                raise DatabaseException(
-                    f"Unexpected error while fetching all users: {str(e)}"
-                ) from e
+                raise DatabaseException(f"Unexpected error while fetching all users: {str(e)}") from e
+
+    async def exists_by_email(self, email: str) -> bool:
+        """Check if user entity exists by email."""
+        user = await self.get_by_email(email)
+        return user is not None
+
+    async def exists_by_username(self, username: str) -> bool:
+        """Check if user entity exists by username."""
+        user = await self.get_by_username(username)
+        return user is not None

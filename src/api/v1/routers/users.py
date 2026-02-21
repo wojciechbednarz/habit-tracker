@@ -20,12 +20,8 @@ async def create_user(
     user_manager: Annotated[AsyncUserManager, Depends(get_user_manager)],
 ) -> UserResponse:
     """Creates a user by sending a POST request"""
-    user = await user_manager.create_user(
-        request.username, request.email, request.nickname, request.password
-    )
-    return UserResponse(
-        message="User successfully created", user_id=cast(UUID, user.user_id)
-    )
+    user = await user_manager.create_user(request.username, request.email, request.nickname, request.password)
+    return UserResponse(message="User successfully created", user_id=cast(UUID, user.user_id))
 
 
 @router.put("/{user_id}")

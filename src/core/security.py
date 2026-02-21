@@ -11,9 +11,7 @@ from config import settings
 password_hash = PasswordHash.recommended()
 
 
-def create_access_token(
-    data: dict[str, Any], expires_delta: timedelta | None = None
-) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """Returns encoded JSON Web Token"""
     to_encode = data.copy()
     if expires_delta:
@@ -22,9 +20,7 @@ def create_access_token(
         expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({"exp": int(expire.timestamp())})
     assert settings.JWT_SECRET_KEY is not None, "JWT_SECRETS_KEY must be set"
-    encoded_jwt: str = jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
-    )
+    encoded_jwt: str = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
 
@@ -44,9 +40,7 @@ def decode_token(token: str) -> dict[str, Any] | None:
     """Decodes JWT token"""
     try:
         assert settings.JWT_SECRET_KEY is not None, "JWT_SECRETS_KEY must be set"
-        decoded_token: dict[str, Any] = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
-        )
+        decoded_token: dict[str, Any] = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return decoded_token
     except jwt.PyJWTError:
         return None

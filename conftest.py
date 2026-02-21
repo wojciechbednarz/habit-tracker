@@ -1,5 +1,6 @@
 """conftest.py - Pytest fixtures for habit tracker tests."""
 
+import asyncio
 import random
 import uuid
 from collections.abc import AsyncGenerator, Callable, Coroutine, Generator
@@ -35,6 +36,8 @@ from src.api.v1.routers.dependencies import (
 )
 from src.core.cache import RedisManager
 from src.core.db import AsyncDatabase, SyncDatabase
+from src.core.events.events import HabitCompletedEvent
+from src.core.events.handlers import Context
 from src.core.habit import HabitManager, UserManager
 from src.core.habit_async import (
     AsyncHabitManager,
@@ -232,9 +235,7 @@ def authenticated_as_user_api_client(
     app.router.lifespan_context = test_lifespan
     app.dependency_overrides[get_user_manager] = lambda: async_user_manager
     app.dependency_overrides[get_habit_manager] = lambda: async_habit_manager
-    app.dependency_overrides[get_current_user_with_role] = (
-        mock_get_current_user_with_role
-    )
+    app.dependency_overrides[get_current_user_with_role] = mock_get_current_user_with_role
     app.dependency_overrides[get_current_active_user] = mock_get_current_active_user
     with TestClient(app) as client:
         yield client
@@ -357,7 +358,7 @@ def test_lifespan(redis_instance: str) -> Callable[[FastAPI], Any]:
 
 
 @pytest_asyncio.fixture()
-async def mock_async_sqlite_db(tmp_path: Path) -> AsyncGenerator[str]:
+async def async_sqlite_db(tmp_path: Path) -> AsyncGenerator[str]:
     """Mocks SQLite database"""
     test_db = "test_habits_async.db"
     test_db_path = tmp_path / test_db
@@ -375,16 +376,12 @@ async def postgres_db_objects(
     """
     Mocks postgres database. Integration tests for real db purpose.
     """
-    db_url = postgres_container.get_connection_url().replace(
-        "postgresql+psycopg2://", "postgresql+asyncpg://"
-    )
+    db_url = postgres_container.get_connection_url().replace("postgresql+psycopg2://", "postgresql+asyncpg://")
     print(f"DB URL--------- {db_url}")
     engine = create_async_engine(db_url, echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    async_session = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     yield async_session, engine
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -422,19 +419,19 @@ async def cache_manager(redis_client: Redis) -> AsyncGenerator[RedisManager]:  #
 
 @pytest_asyncio.fixture(scope="function")
 async def async_user_manager(
-    mock_async_sqlite_db: str,
+    async_sqlite_db: str,
 ) -> AsyncGenerator[AsyncUserManager]:
     """Create UserManager with async database for API tests."""
-    user_manager = AsyncUserManager(db_path=mock_async_sqlite_db)
+    user_manager = AsyncUserManager(db_path=async_sqlite_db)
     yield user_manager
     await user_manager.service.async_db.async_engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
 async def async_habit_manager(
-    mock_async_sqlite_db: str,
+    async_sqlite_db: str,
 ) -> AsyncGenerator[AsyncHabitManager]:
-    habit_manager = AsyncHabitManager(db_path=mock_async_sqlite_db)
+    habit_manager = AsyncHabitManager(db_path=async_sqlite_db)
     yield habit_manager
     await habit_manager.async_db.async_engine.dispose()
 
@@ -448,9 +445,7 @@ async def async_test_user_sqlite(
     Create a test user and return its content. Uses SQlite database.
     """
     username, email, nickname, password = fake_user_data
-    user = await async_user_manager.create_user(
-        username=username, email=email, nickname=nickname, password=password
-    )
+    user = await async_user_manager.create_user(username=username, email=email, nickname=nickname, password=password)
     # Store the actual user_id as UUID type
     user_id: UUID = user.user_id  # type: ignore[assignment]
     user.hashed_password = get_password_hash(password)  # type: ignore[assignment]
@@ -484,9 +479,7 @@ async def async_admin_user(
 ) -> AsyncGenerator[UserBase]:
     """Create a test admin user"""
     username, email, nickname, password = fake_user_data_factory()
-    user = await async_user_manager.create_user(
-        username=username, email=email, nickname=nickname, password=password
-    )
+    user = await async_user_manager.create_user(username=username, email=email, nickname=nickname, password=password)
     user_id: UUID = user.user_id  # type: ignore[assignment]
     user_email: str = user.email  # type: ignore[assignment]
     user.hashed_password = get_password_hash(password)  # type: ignore[assignment]
@@ -644,3 +637,43 @@ async def mocked_user_manager(
 ) -> AsyncUserManager:
     """Create real AsyncUserManager with mocked service layer."""
     return AsyncUserManager(service=mocked_user_service)
+
+
+@pytest.fixture
+def async_runner() -> Callable[[Coroutine[Any, Any, Any]], Any]:
+    """Helper to run async operations in sync tests without event loop conflicts."""
+
+    def _run(coro: Coroutine[Any, Any, Any]) -> Any:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
+
+    return _run
+
+
+@pytest_asyncio.fixture
+async def mock_handler_context() -> "Context":
+    r"""Mocks the context needed for handler methods from src\core\events\handlers.py"""
+    context = Context(user_repo=AsyncMock(), habit_repo=AsyncMock(), ses_client=AsyncMock())
+    return context
+
+
+@pytest_asyncio.fixture(scope="function")
+async def habit_completed_event_factory() -> "Callable[[int], HabitCompletedEvent]":
+    """Factory to create HabitCompletedEvent with custom streak_count."""
+
+    def _make_event(streak_count: int = 0) -> HabitCompletedEvent:
+        return HabitCompletedEvent(
+            user_id=uuid4(),
+            habit_id=uuid4(),
+            completed_date=datetime.now(),
+            streak_count=streak_count,
+            event_id=uuid4(),
+            timestamp=datetime.now(),
+        )
+
+    return _make_event

@@ -11,6 +11,7 @@ from src.core.habit import HabitFormatter
 from src.core.models import HabitBase, UserBase
 from src.core.schemas import HabitCreate, HabitResponse, HabitUpdate, UserUpdate
 from src.core.security import get_password_hash
+from src.infrastructure.ai.ollama_client import OllamaClient
 from src.repository.habit_repository import HabitRepository
 from src.repository.user_repository import UserRepository
 from src.utils.helpers import normalize_habit_name
@@ -35,9 +36,7 @@ class AsyncUserService:
         self.async_session_maker = async_db.async_session_maker
         self.async_engine = async_db.async_engine
 
-    async def create_user(
-        self, username: str, email: str, nickname: str, password: str
-    ) -> UserBase:
+    async def create_user(self, username: str, email: str, nickname: str, password: str) -> UserBase:
         """Create a new user."""
         logger.info(f"Creating user: {username} to database.")
         user_base = UserBase(
@@ -50,9 +49,7 @@ class AsyncUserService:
         logger.info(f"User: {username} added successfully.")
         return user
 
-    async def create_user_with_default_habit(
-        self, username: str, email: str, nickname: str, password: str
-    ) -> UserBase:
+    async def create_user_with_default_habit(self, username: str, email: str, nickname: str, password: str) -> UserBase:
         """Creates a user with default habit"""
         async with self.async_db.async_session_maker() as session:
             user_base = UserBase(
@@ -136,9 +133,7 @@ class AsyncUserService:
 class AsyncUserManager:
     """High-level interface for user management."""
 
-    def __init__(
-        self, db_path: str | None = None, service: AsyncUserService | None = None
-    ) -> None:
+    def __init__(self, db_path: str | None = None, service: AsyncUserService | None = None) -> None:
         """Initialize user manager."""
         self.async_db = AsyncDatabase(db_path) if db_path else AsyncDatabase()
         self.formatter = HabitFormatter()
@@ -147,26 +142,16 @@ class AsyncUserManager:
             self.service = service
         else:
             user_repo = UserRepository(self.async_db.async_session_maker)
-            habit_repo = HabitRepository(
-                self.async_db.async_session_maker, self.async_db.async_engine
-            )
-            self.service = AsyncUserService(
-                user_repo=user_repo, habit_repo=habit_repo, async_db=self.async_db
-            )
+            habit_repo = HabitRepository(self.async_db.async_session_maker, self.async_db.async_engine)
+            self.service = AsyncUserService(user_repo=user_repo, habit_repo=habit_repo, async_db=self.async_db)
 
-    async def create_user(
-        self, username: str, email: str, nickname: str, password: str
-    ) -> UserBase:
+    async def create_user(self, username: str, email: str, nickname: str, password: str) -> UserBase:
         """Creates a user"""
         return await self.service.create_user(username, email, nickname, password)
 
-    async def create_user_with_default_habit(
-        self, username: str, email: str, nickname: str, password: str
-    ) -> UserBase:
+    async def create_user_with_default_habit(self, username: str, email: str, nickname: str, password: str) -> UserBase:
         """Creates user with a default habit"""
-        return await self.service.create_user_with_default_habit(
-            username, email, nickname, password
-        )
+        return await self.service.create_user_with_default_habit(username, email, nickname, password)
 
     async def update_user(self, user_id: UUID, updates: UserUpdate) -> bool:
         """Updates specific value relate to the user"""
@@ -208,12 +193,14 @@ class AsyncHabitService:
         user_repo: UserRepository,
         habit_repo: HabitRepository,
         async_db: AsyncDatabase,
+        ollama_client: OllamaClient | None = None,
     ) -> None:
         self.user_repo = user_repo
         self.habit_repo = habit_repo
         self.async_db = async_db
         self.async_session_maker = async_db.async_session_maker
         self.async_engine = async_db.async_engine
+        self.ollama_client = ollama_client
 
     async def create_habit(self, habit_data: HabitCreate, user_id: UUID) -> HabitBase:
         """
@@ -226,12 +213,19 @@ class AsyncHabitService:
             HabitNotFoundException: If habit already exists
         """
         logger.info(f"Creating habit: {habit_data.name}.")
+        try:
+            if not habit_data.tags and self.ollama_client:
+                tags = await self.ollama_client.generate_tags(habit_data.name, habit_data.description)
+                habit_data.tags = tags
+        except Exception as e:
+            logger.error(f"Error generating tags for habit '{habit_data.name}': {e}")
         habit_base = HabitBase(
             user_id=user_id,
             name=habit_data.name,
             description=habit_data.description,
             frequency=habit_data.frequency,
             mark_done=habit_data.mark_done,
+            tags=habit_data.tags,
         )
         habit = await self.habit_repo.add(habit_base)
         logger.info(f"Habit: {habit_data.name} added successfully.")
@@ -263,6 +257,21 @@ class AsyncHabitService:
         logger.info(f"Retrieved habit: {habit}")
         return HabitResponse.model_validate(habit)
 
+    async def get_at_risk_habits(self, user_id: UUID, threshold_days: int = 3) -> list[HabitResponse]:
+        """
+        Get habits which are 'at risk' - meaning the user has not completed the habit
+        for at least 3 consecutive days.
+
+        :user_id: ID of the user to fetch habits for
+        :threshold_days: Number of consecutive days without completion to consider
+        a habit 'at risk'
+        :return: List of at-risk habits as HabitResponse objects
+        """
+        logger.info(f"Fetching at-risk habits for user with ID: {user_id}")
+        habits = await self.habit_repo.get_at_risk_habits(user_id, threshold_days)
+        logger.info(f"Retrieved {len(habits)} at-risk habits for user ID: {user_id}")
+        return [HabitResponse.model_validate(habit) for habit in habits]
+
     async def update_habit(self, updates: HabitUpdate, habit_id: UUID) -> bool:
         """
         Update an existing habit.
@@ -285,7 +294,7 @@ class AsyncHabitService:
         logger.info(f"Habit '{normalized_habit_name}' updated successfully")
         return update
 
-    async def mark_habit_done(self, habit_id: UUID, mark_done: bool = True) -> None:
+    async def log_habit_completion(self, habit_id: UUID) -> None:
         """
         Mark a habit as completed.
         Args:
@@ -298,9 +307,8 @@ class AsyncHabitService:
         habit = await self.habit_repo.get_specific_habit_for_user(habit_id)
         if not habit:
             raise HabitNotFoundException(f"Habit with ID '{habit_id}' not found")
-        params = {"mark_done": mark_done}
-        await self.habit_repo.update(habit_id, params)
-        logger.info(f"Habit '{habit.name}' marked as done")
+        await self.habit_repo.add_completion(habit_id)
+        logger.info(f"Habit '{habit.name}' marked as completed")
 
     async def delete_habits_for_all_users(self) -> None:
         """Delete all habits from the database."""
@@ -329,21 +337,26 @@ class AsyncHabitManager:
     """High-level interface for habit management."""
 
     def __init__(
-        self, db_path: str | None = None, service: AsyncHabitService | None = None
+        self,
+        db_path: str | None = None,
+        service: AsyncHabitService | None = None,
+        ollama_client: OllamaClient | None = None,
     ) -> None:
         """Initialize habit manager."""
         self.async_db = AsyncDatabase(db_path) if db_path else AsyncDatabase()
         self.formatter = HabitFormatter()
         self.running = True
+        self.ollama_client = ollama_client
         if service:
             self.service = service
         else:
             user_repo = UserRepository(self.async_db.async_session_maker)
-            habit_repo = HabitRepository(
-                self.async_db.async_session_maker, self.async_db.async_engine
-            )
+            habit_repo = HabitRepository(self.async_db.async_session_maker, self.async_db.async_engine)
             self.service = AsyncHabitService(
-                user_repo=user_repo, habit_repo=habit_repo, async_db=self.async_db
+                user_repo=user_repo,
+                habit_repo=habit_repo,
+                async_db=self.async_db,
+                ollama_client=self.ollama_client,
             )
 
     async def add_habit(
@@ -353,6 +366,7 @@ class AsyncHabitManager:
         description: str,
         frequency: str,
         mark_done: bool = False,
+        tags: str | None = None,
     ) -> HabitBase:
         """Add a new habit."""
         normalized_habit_name = normalize_habit_name(habit_name)
@@ -361,6 +375,7 @@ class AsyncHabitManager:
             description=description,
             frequency=frequency,
             mark_done=mark_done,
+            tags=tags,
         )
         return await self.service.create_habit(habit_data, user_id)
 
@@ -368,9 +383,9 @@ class AsyncHabitManager:
         """Updates specific value relate to the habit"""
         return await self.service.update_habit(updates, habit_id)
 
-    async def complete_habit(self, habit_id: UUID, mark_done: bool = True) -> None:
+    async def complete_habit(self, habit_id: UUID) -> None:
         """Mark a habit as completed."""
-        await self.service.mark_habit_done(habit_id, mark_done)
+        await self.service.log_habit_completion(habit_id)
 
     async def clear_all_habits(self) -> None:
         """Delete all habits for all users."""
@@ -392,6 +407,19 @@ class AsyncHabitManager:
         """Get a specific habit for a user based on habit id."""
         habit = await self.service.get_specific_habit(habit_id)
         return habit
+
+    async def get_at_risk_habits(self, user_id: UUID, threshold_days: int = 3) -> list[HabitResponse]:
+        """
+        Get habits which are 'at risk' - meaning the user has not completed the habit
+        for at least 3 consecutive days.
+
+        :user_id: ID of the user to fetch habits for
+        :threshold_days: Number of consecutive days without completion to consider
+        a habit 'at risk'
+        :return: List of at-risk habits as HabitResponse objects
+        """
+        habits = await self.service.get_at_risk_habits(user_id, threshold_days)
+        return habits
 
 
 if __name__ == "__main__":
@@ -415,9 +443,7 @@ if __name__ == "__main__":
                 mark_done=False,
             )
             await habit_manager.update_habit(
-                updates=HabitUpdate(
-                    name="Read a book", description="Read a book", frequency="daily"
-                ),
+                updates=HabitUpdate(name="Read a book", description="Read a book", frequency="daily"),
                 habit_id=habit.id,
             )
             habits = await habit_manager.get_all_habits_for_user(user.user_id)

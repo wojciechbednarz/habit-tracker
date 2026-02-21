@@ -18,9 +18,7 @@ def _set_env_variables() -> tuple[str, str, str]:
     return admin_username, admin_email, admin_password
 
 
-async def _promote_user_to_admin(
-    user_manager: AsyncUserManager, admin_username: str, user: UserBase
-) -> None:
+async def _promote_user_to_admin(user_manager: AsyncUserManager, admin_username: str, user: UserBase) -> None:
     """Promotes a user with admin privileges"""
     user = await user_manager.get_user_by_username(admin_username)
     logger.info(f"User '{admin_username}' exists, promoting to admin...")

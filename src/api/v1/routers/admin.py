@@ -28,9 +28,7 @@ async def read_all_users(
     """GET request to read all users as admin"""
     users = await user_manager.read_all_users()
     users_data = [User.model_validate(user, from_attributes=True) for user in users]
-    return UserAdminReadAllUsers(
-        message="Reading all users successful", users=users_data, total=len(users)
-    )
+    return UserAdminReadAllUsers(message="Reading all users successful", users=users_data, total=len(users))
 
 
 @router.get("/users/{user_id}")
@@ -42,9 +40,7 @@ async def read_user(
     """GET request to read a user as admin"""
     user = await user_manager.get_user_by_id(user_id)
     user_data = User.model_validate(user, from_attributes=True)
-    return UserAdminReadUser(
-        message=f"Reading a user with ID {user_id} successful", user=user_data
-    )
+    return UserAdminReadUser(message=f"Reading a user with ID {user_id} successful", user=user_data)
 
 
 @router.patch("/users/{user_id}/role")

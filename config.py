@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import PostgresDsn, ValidationInfo, field_validator
+from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
 
     # Database
-    DATABASE_URL: PostgresDsn
+    DATABASE_URL: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
@@ -34,6 +34,17 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
+
+    # AWS
+    AWS_REGION: str = "eu-central-1"
+    AWS_SQS_STACK_NAME: str
+    AWS_S3_BUCKET_NAME: str
+    AWS_SES_SENDER_EMAIL: str
+    AWS_ACCESS_KEY_ID: str
+    AWS_SECRET_ACCESS_KEY: str
+
+    # AI
+    OLLAMA_URL: str
 
     @classmethod
     @field_validator("JWT_SECRET_KEY", mode="before")

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.core.habit import HabitUpdate
+from src.core.schemas import HabitUpdate
 
 testdata = [
     (" Running ", "  Evening run in the park   "),
@@ -13,7 +13,7 @@ testdata = [
 
 @pytest.mark.unit
 @pytest.mark.parametrize("name, description", testdata)
-def test_strip_whitespace_not_none(name, description):
+def test_strip_whitespace_not_none(name: str, description: str) -> None:
     """Test that whitespace is stripped from habit update parameters."""
     habit_update = HabitUpdate()
 
@@ -24,7 +24,7 @@ def test_strip_whitespace_not_none(name, description):
     assert description.strip() == stripped_description
 
 
-def test_strip_whitespace_none():
+def test_strip_whitespace_none() -> None:
     """Test that None input returns None for strip_whitespace."""
     habit_update = HabitUpdate()
 

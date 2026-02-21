@@ -1,9 +1,12 @@
 """Integration tests for the HabitManager class."""
 
+from collections.abc import Callable
 from unittest.mock import AsyncMock
 
 import pytest
 
+from src.core.habit_async import AsyncHabitManager
+from src.core.models import HabitBase, UserBase
 from src.core.schemas import HabitUpdate
 
 
@@ -18,18 +21,16 @@ from src.core.schemas import HabitUpdate
     ],
 )
 async def test_add_habit(
-    mocked_habit_manager,
-    create_user_entity,
-    create_habit_entity,
+    mocked_habit_manager: "AsyncHabitManager",
+    create_user_entity: Callable[..., UserBase],
+    create_habit_entity: Callable[..., HabitBase],
     name: str,
     description: str,
     frequency: str,
-):
+) -> None:
     """Test adding a new habit through manager layer."""
     user = create_user_entity()
-    expected_habit = create_habit_entity(
-        user_id=user.user_id, name=name, description=description, frequency=frequency
-    )
+    expected_habit = create_habit_entity(user_id=user.user_id, name=name, description=description, frequency=frequency)
 
     mocked_habit_manager.service.habit_repo.add.return_value = expected_habit
 
@@ -66,33 +67,31 @@ async def test_add_habit(
         },
     ],
 )
-async def test_complete_habit(mocked_habit_manager, create_habit_entity, initial_habit):
+async def test_complete_habit(
+    mocked_habit_manager: "AsyncHabitManager",
+    create_habit_entity: Callable[..., HabitBase],
+    initial_habit: dict[str, str],
+) -> None:
     """Test marking a habit as done through manager layer."""
     habit = create_habit_entity(**initial_habit)
 
-    mocked_habit_manager.service.habit_repo.get_specific_habit_for_user.return_value = (
-        habit
-    )
-    mocked_habit_manager.service.habit_repo.update = AsyncMock(return_value=True)
+    mocked_habit_manager.service.habit_repo.get_specific_habit_for_user.return_value = habit
+    mocked_habit_manager.service.habit_repo.add_completion = AsyncMock(return_value=True)
 
-    await mocked_habit_manager.complete_habit(habit_id=habit.id, mark_done=True)
+    await mocked_habit_manager.complete_habit(habit_id=habit.id)
 
-    mocked_habit_manager.service.habit_repo.update.assert_called_once_with(
-        habit.id, {"mark_done": True}
-    )
+    mocked_habit_manager.service.habit_repo.add_completion.assert_called_once_with(habit.id)
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_clear_all_habits(mocked_habit_manager):
+async def test_clear_all_habits(mocked_habit_manager: "AsyncHabitManager") -> None:
     """Test clearing all habits through manager layer."""
     mocked_habit_manager.service.habit_repo.execute_query.return_value = 5
 
     await mocked_habit_manager.clear_all_habits()
 
-    mocked_habit_manager.service.habit_repo.execute_query.assert_called_once_with(
-        "DELETE FROM habits"
-    )
+    mocked_habit_manager.service.habit_repo.execute_query.assert_called_once_with("DELETE FROM habits")
 
 
 @pytest.mark.unit
@@ -118,29 +117,30 @@ async def test_clear_all_habits(mocked_habit_manager):
     ],
 )
 async def test_get_all_habits_for_user(
-    mocked_habit_manager, create_user_entity, create_habit_entity, habit_data
-):
+    mocked_habit_manager: "AsyncHabitManager",
+    create_user_entity: Callable[..., UserBase],
+    create_habit_entity: Callable[..., HabitBase],
+    habit_data: dict[str, str],
+) -> None:
     """Test getting all habits for a user through manager layer."""
     user = create_user_entity()
     habits = [create_habit_entity(user_id=user.user_id, **habit_data)]
 
-    mocked_habit_manager.service.habit_repo.get_all_habits_for_user.return_value = (
-        habits
-    )
+    mocked_habit_manager.service.habit_repo.get_all_habits_for_user.return_value = habits
 
     result = await mocked_habit_manager.get_all_habits_for_user(user.user_id)
 
     assert len(result) == 1
     assert result[0].name == habit_data["name"]
 
-    mocked_habit_manager.service.habit_repo.get_all_habits_for_user.assert_called_once_with(
-        user.user_id
-    )
+    mocked_habit_manager.service.habit_repo.get_all_habits_for_user.assert_called_once_with(user.user_id)
 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_delete_habit(mocked_habit_manager, create_habit_entity):
+async def test_delete_habit(
+    mocked_habit_manager: "AsyncHabitManager", create_habit_entity: Callable[..., HabitBase]
+) -> None:
     """Test deleting a specific habit through manager layer."""
     habit = create_habit_entity()
 
@@ -154,13 +154,13 @@ async def test_delete_habit(mocked_habit_manager, create_habit_entity):
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_update_habit(mocked_habit_manager, create_habit_entity):
+async def test_update_habit(
+    mocked_habit_manager: "AsyncHabitManager", create_habit_entity: Callable[..., HabitBase]
+) -> None:
     """Test updating a habit through manager layer."""
     habit = create_habit_entity(name="Exercise")
 
-    mocked_habit_manager.service.habit_repo.get_specific_habit_for_user = AsyncMock(
-        return_value=habit
-    )
+    mocked_habit_manager.service.habit_repo.get_specific_habit_for_user = AsyncMock(return_value=habit)
     mocked_habit_manager.service.habit_repo.update.return_value = True
 
     updates = HabitUpdate(description="Updated description")

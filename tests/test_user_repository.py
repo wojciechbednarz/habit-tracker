@@ -3,6 +3,8 @@ Integration tests for UserRepository entity manipulation methods.
 Real postgres database with testcontainers usage.
 """
 
+import typing
+import uuid
 from collections.abc import Callable
 from uuid import uuid4
 
@@ -17,7 +19,7 @@ from src.repository.user_repository import UserRepository
 @pytest.mark.asyncio
 async def test_add_user_success(
     user_repository_real_db: UserRepository, create_user_entity: Callable[..., UserBase]
-) -> UserBase | None:
+) -> None:
     """Tests if user is successfully added to the database"""
     user = create_user_entity()
     add_user = await user_repository_real_db.add(user)
@@ -90,26 +92,24 @@ async def test_get_by_username_not_found(
 async def test_update_user_success(
     user_repository_real_db: UserRepository,
     create_user_entity: Callable[..., UserBase],
-):
+) -> None:
     """Tests updating a user's details successfully"""
     user = create_user_entity()
     added_user = await user_repository_real_db.add(user)
     update_params = {"nickname": "UpdatedNickname"}
     update = await user_repository_real_db.update(
-        entity_id=added_user.user_id, params=update_params
+        entity_id=typing.cast(uuid.UUID, added_user.user_id), params=update_params
     )
     assert update is True
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_update_user_not_found(user_repository_real_db: UserRepository):
+async def test_update_user_not_found(user_repository_real_db: UserRepository) -> None:
     """Tests updating a non-existent user raises exception"""
     non_existent_user_id = uuid4()
     update_params = {"nickname": "UpdatedNickname"}
-    updated_user = await user_repository_real_db.update(
-        entity_id=non_existent_user_id, params=update_params
-    )
+    updated_user = await user_repository_real_db.update(entity_id=non_existent_user_id, params=update_params)
     assert not updated_user
 
 
@@ -118,11 +118,11 @@ async def test_update_user_not_found(user_repository_real_db: UserRepository):
 async def test_delete_user_success(
     user_repository_real_db: UserRepository,
     create_user_entity: Callable[..., UserBase],
-):
+) -> None:
     """Tests deleting a user successfully"""
     user = create_user_entity()
     added_user = await user_repository_real_db.add(user)
-    deleted = await user_repository_real_db.delete(entity_id=added_user.user_id)
+    deleted = await user_repository_real_db.delete(entity_id=typing.cast(uuid.UUID, added_user.user_id))
     assert deleted
 
 
@@ -130,7 +130,7 @@ async def test_delete_user_success(
 @pytest.mark.asyncio
 async def test_delete_user_not_found(
     user_repository_real_db: UserRepository,
-):
+) -> None:
     """Tests deleting a non-existent user raises exception"""
     non_existent_user_id = uuid4()
     deleted = await user_repository_real_db.delete(entity_id=non_existent_user_id)
@@ -142,7 +142,7 @@ async def test_delete_user_not_found(
 async def test_exists_by_email(
     user_repository_real_db: UserRepository,
     create_user_entity: Callable[..., UserBase],
-):
+) -> None:
     """Tests checking existence of user by email"""
     email = "test@example.com"
     user = create_user_entity(email=email)
@@ -156,7 +156,7 @@ async def test_exists_by_email(
 async def test_exists_by_username(
     user_repository_real_db: UserRepository,
     create_user_entity: Callable[..., UserBase],
-):
+) -> None:
     """Tests checking existence of user by username"""
     username = "testuser"
     user = create_user_entity(username=username)
@@ -170,7 +170,7 @@ async def test_exists_by_username(
 async def test_get_all_users(
     user_repository_real_db: UserRepository,
     create_user_entity: Callable[..., UserBase],
-):
+) -> None:
     """Tests retrieving all users"""
     user1 = create_user_entity(username="user1")
     user2 = create_user_entity(username="user2")

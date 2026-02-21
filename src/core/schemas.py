@@ -40,10 +40,9 @@ class HabitCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=30)
     description: str = Field(..., max_length=255)
-    frequency: str = Field(
-        ..., min_length=1, max_length=20, pattern="^(daily|weekly|monthly|yearly)$"
-    )
+    frequency: str = Field(..., min_length=1, max_length=20, pattern="^(daily|weekly|monthly|yearly)$")
     mark_done: bool = Field(default=False)
+    tags: str | None = Field(None, description="Comma-separated tags")
 
     @field_validator("name", "description")
     @classmethod
@@ -51,15 +50,22 @@ class HabitCreate(BaseModel):
         """Remove leading/trailing whitespace."""
         return v.strip()
 
+    @field_validator("tags")
+    @classmethod
+    def sanitize_tags(cls, v: str | None) -> str | None:
+        """Convert comma-separated tags into a set of unique, stripped tags."""
+        if not v:
+            return v
+        clean_tags = {tag.strip().lower() for tag in v.split() if tag.strip()}
+        return ", ".join(sorted(clean_tags))
+
 
 class HabitUpdate(BaseModel):
     """Pydantic class describing types of the habit data"""
 
     name: str | None = Field(None, min_length=1, max_length=30)
     description: str | None = Field(None, max_length=255)
-    frequency: str | None = Field(
-        None, min_length=1, max_length=20, pattern="^(daily|weekly|monthly|yearly)$"
-    )
+    frequency: str | None = Field(None, min_length=1, max_length=20, pattern="^(daily|weekly|monthly|yearly)$")
     mark_done: bool | None = None
 
     @field_validator("name", "description")
@@ -101,9 +107,7 @@ class User(BaseModel):
         description="Nickname must be between 3 and 50 characters",
     )
     created_at: datetime = Field(..., description="Creation timestamp")
-    disabled: bool | None = Field(
-        description="Flag to check if user is currently active"
-    )
+    disabled: bool | None = Field(description="Flag to check if user is currently active")
 
 
 class UserWithRole(User):
@@ -132,9 +136,7 @@ class UserCreate(BaseModel):
         max_length=50,
         description="Nickname must be between 3 and 50 characters",
     )
-    password: str = Field(
-        ..., min_length=6, description="Password must be at least 6 characters"
-    )
+    password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
 
 
 class UserResponse(BaseModel):
@@ -144,8 +146,7 @@ class UserResponse(BaseModel):
 
     message: str = Field(
         ...,
-        description="Message send from server to "
-        "validate if user was successfully created",
+        description="Message send from server to validate if user was successfully created",
         min_length=1,
     )
     user_id: UUID = Field(..., description="Generated user ID in form of UUID")
@@ -207,3 +208,12 @@ class UserInDB(User):
 
     hashed_password: str
     role: str
+
+
+class HabitAdvice(BaseModel):
+    """Pydantic class describing the habit advice data obtained from the AI model."""
+
+    habit_name: str
+    reasoning: str
+    advice_tip: str
+    priority: str

@@ -35,9 +35,7 @@ def setup_logger(name: str = "", level: int | str = logging.INFO) -> logging.Log
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
 
-    file_handler = logging.FileHandler(
-        log_dir / f"app_{datetime.now().strftime('%Y%m%d')}.log"
-    )
+    file_handler = logging.FileHandler(log_dir / f"app_{datetime.now().strftime('%Y%m%d')}.log")
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.INFO)
 

@@ -22,9 +22,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Upgrade schema."""
     with op.batch_alter_table("users", schema=None) as batch_op:
-        batch_op.alter_column(
-            "email", existing_type=sa.VARCHAR(length=60), nullable=False
-        )
+        batch_op.alter_column("email", existing_type=sa.VARCHAR(length=60), nullable=False)
         batch_op.create_unique_constraint("uq_users_email", ["email"])
         batch_op.create_unique_constraint("uq_users_username", ["username"])
 
@@ -34,6 +32,4 @@ def downgrade() -> None:
     with op.batch_alter_table("users", schema=None) as batch_op:
         batch_op.drop_constraint("uq_users_username", type_="unique")
         batch_op.drop_constraint("uq_users_email", type_="unique")
-        batch_op.alter_column(
-            "email", existing_type=sa.VARCHAR(length=60), nullable=True
-        )
+        batch_op.alter_column("email", existing_type=sa.VARCHAR(length=60), nullable=True)

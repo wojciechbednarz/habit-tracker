@@ -21,15 +21,12 @@ def check_if_key_exists_in_json(file_name: str, value_related_to_habit: str) -> 
                 for _, loaded_value in list_value.items():
                     if loaded_value == value_related_to_habit:
                         logger.debug(
-                            f"Loaded key: {loaded_value} is the same as provided one: "
-                            f"{value_related_to_habit}"
+                            f"Loaded key: {loaded_value} is the same as provided one: {value_related_to_habit}"
                         )
                         return True
         return False
     except ValueError as e:
-        logger.error(
-            f"There was an error during loading json file {file_name}, error: {e}"
-        )
+        logger.error(f"There was an error during loading json file {file_name}, error: {e}")
         return False
     except FileNotFoundError as e:
         logger.error(f"File {file_name} not found, error: {e}")
@@ -47,9 +44,7 @@ def read_json_file(file_name: str) -> Any:
         logger.error(f"File {file_name} not found, error: {e}")
         return {}
     except ValueError as e:
-        logger.error(
-            f"There was an error during loading json file {file_name}, error: {e}"
-        )
+        logger.error(f"There was an error during loading json file {file_name}, error: {e}")
         return {}
 
 
@@ -60,9 +55,7 @@ def write_json_file(file_name: str, data: Any) -> None:
             json.dump(data, f, indent=4)
         logger.info(f"Successfully wrote to JSON file: {file_name}")
     except Exception as e:
-        logger.error(
-            f"An error occurred while writing to JSON file: {file_name}, error: {e}"
-        )
+        logger.error(f"An error occurred while writing to JSON file: {file_name}, error: {e}")
 
 
 def modify_json_file(
@@ -74,9 +67,7 @@ def modify_json_file(
     try:
         existing_data = read_json_file(file_name)
         if not existing_data:
-            logger.error(
-                f"Cannot modify JSON file: {file_name} because it could not be read."
-            )
+            logger.error(f"Cannot modify JSON file: {file_name} because it could not be read.")
             return
         for i, item in enumerate(existing_data):
             if isinstance(item, dict) and item.get("name") == value_to_update:
@@ -85,9 +76,7 @@ def modify_json_file(
         write_json_file(file_name, existing_data)
         logger.info(f"Successfully modified JSON file: {file_name}")
     except Exception as e:
-        logger.error(
-            f"An error occurred while modifying JSON file: {file_name}, error: {e}"
-        )
+        logger.error(f"An error occurred while modifying JSON file: {file_name}, error: {e}")
 
 
 def initialize_json_file(file_name: str) -> None:
@@ -103,9 +92,7 @@ def initialize_json_file(file_name: str) -> None:
     except FileExistsError:
         logger.info(f"JSON file: {file_name} already exists. No action taken.")
     except Exception as e:
-        logger.error(
-            f"An error occurred while initializing JSON file: {file_name}, error: {e}"
-        )
+        logger.error(f"An error occurred while initializing JSON file: {file_name}, error: {e}")
 
 
 def normalize_habit_name(habit_name: str) -> str:

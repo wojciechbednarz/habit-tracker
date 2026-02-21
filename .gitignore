@@ -143,3 +143,4 @@ logs/
 habit_storage.json
 habits.db
 *.lock
+.pdf

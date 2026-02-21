@@ -137,9 +137,7 @@ class HabitFormatter:
         habits_display = []
         for habit in habits:
             status = "✓ Done" if habit.mark_done else "○ Pending"
-            habit_info = (
-                f"• {habit.name} ({habit.frequency}) - {status}\n  {habit.description}"
-            )
+            habit_info = f"• {habit.name} ({habit.frequency}) - {status}\n  {habit.description}"
             habits_display.append(habit_info)
         return "\n\n".join(habits_display)
 
@@ -160,9 +158,7 @@ class HabitFormatter:
                 "description": habit.description,
                 "frequency": habit.frequency,
                 "mark_done": habit.mark_done,
-                "created_at": habit.created_at.isoformat()
-                if habit.created_at
-                else None,
+                "created_at": habit.created_at.isoformat() if habit.created_at else None,
             }
             for habit in habits
         ]
@@ -232,9 +228,7 @@ class HabitManager:
             logger.error(f"Failed to add habit: {e}")
             return f"Failed to add habit: {e}"
 
-    def update_habit(
-        self, habit_name: str, updates: dict[str, Any], email: str
-    ) -> bool:
+    def update_habit(self, habit_name: str, updates: dict[str, Any], email: str) -> bool:
         """Updates specific value relate to the habit"""
         normalized_habit_name = normalize_habit_name(habit_name)
         update_model = HabitUpdate(**updates)
@@ -277,9 +271,7 @@ class UserService:
         self.db = HabitDatabase(db_url=db_path) if db_path else HabitDatabase()
         self.formatter = HabitFormatter()
 
-    def create_user(
-        self, username: str, email: str, nickname: str, password: str
-    ) -> UserBase:
+    def create_user(self, username: str, email: str, nickname: str, password: str) -> UserBase:
         """Create a new user."""
         logger.info(f"Creating user: {username} to database.")
         user = self.db.create_new_user(username, email, nickname, password)
@@ -308,9 +300,7 @@ class UserManager:
         )
         self.user_service = UserService(db_path=db_path)
 
-    def create_user(
-        self, username: str, email: str, nickname: str, password: str
-    ) -> UserBase:
+    def create_user(self, username: str, email: str, nickname: str, password: str) -> UserBase:
         """Creates a user"""
         return self.user_service.create_user(username, email, nickname, password)
 
@@ -324,9 +314,7 @@ if __name__ == "__main__":
     user_manager = UserManager()
     email = "j.kowalski@example.com"
     password = "password123"
-    user = user_manager.create_user(
-        username="jkowal", email=email, nickname="JohhnyKowalski", password=password
-    )
+    user = user_manager.create_user(username="jkowal", email=email, nickname="JohhnyKowalski", password=password)
 
     try:
         manager.add_habit(
@@ -335,9 +323,7 @@ if __name__ == "__main__":
             frequency="daily",
             email=email,
         )
-        manager.update_habit(
-            habit_name="Exercise", updates={"frequency": "weekly"}, email=email
-        )
+        manager.update_habit(habit_name="Exercise", updates={"frequency": "weekly"}, email=email)
     except ValueError as e:
         print(f"Error: {e}")
 

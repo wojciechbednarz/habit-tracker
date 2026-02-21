@@ -4,7 +4,12 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine, select, text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import sessionmaker
 
 from config import settings
@@ -13,12 +18,31 @@ from src.core.security import get_password_hash
 from src.utils.logger import setup_logger
 
 DATABASE_ASYNC_URL = str(settings.DATABASE_URL)
-DATABASE_SYNC_URL = DATABASE_ASYNC_URL.replace(
-    "postgresql+asyncpg://", "postgresql+psycopg2://"
-).replace("sqlite+aiosqlite://", "sqlite://")
+DATABASE_SYNC_URL = DATABASE_ASYNC_URL.replace("postgresql+asyncpg://", "postgresql+psycopg2://").replace(
+    "sqlite+aiosqlite://", "sqlite://"
+)
 logger = setup_logger(__name__)
 
 __all__ = ["AsyncDatabase", "SyncDatabase", "HabitDatabase", "HabitBase", "UserBase"]
+
+
+def get_async_engine() -> AsyncEngine:
+    """
+    Creates and returns asynchronous database engine.
+
+    :return: Asynchronous database engine
+    """
+    return create_async_engine(DATABASE_ASYNC_URL, echo=False)
+
+
+def get_session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    """
+    Creates and returns asynchronous session maker.
+
+    :param engine: Asynchronous database engine
+    :return: Asynchronous session maker
+    """
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 class AsyncDatabase:
@@ -26,9 +50,7 @@ class AsyncDatabase:
 
     def __init__(self, db_url: str = DATABASE_ASYNC_URL):
         self.async_engine = create_async_engine(db_url, echo=False)
-        self.async_session_maker = async_sessionmaker(
-            self.async_engine, expire_on_commit=False
-        )
+        self.async_session_maker = async_sessionmaker(self.async_engine, expire_on_commit=False)
         self.db_url = db_url
 
     async def init_db_async(self) -> None:
@@ -141,15 +163,9 @@ class HabitDatabase(SyncDatabase):
             with self.sync_session_maker() as session:
                 user = self.fetch_user_by_email(email)
                 user_id = cast(UUID, user.user_id)
-                habit = (
-                    session.query(HabitBase)
-                    .filter(HabitBase.user_id == user_id, HabitBase.name == name)
-                    .first()
-                )
+                habit = session.query(HabitBase).filter(HabitBase.user_id == user_id, HabitBase.name == name).first()
                 if not habit:
-                    logger.warning(
-                        f"Provided habit name: {name} was not found in the database."
-                    )
+                    logger.warning(f"Provided habit name: {name} was not found in the database.")
                     return False
                 for key, value in params.items():
                     setattr(habit, key, value)
@@ -165,11 +181,7 @@ class HabitDatabase(SyncDatabase):
         try:
             user_id: UUID = self._get_user_id(email)
             with self.sync_session_maker() as session:
-                habit = (
-                    session.query(HabitBase)
-                    .filter_by(name=name, user_id=user_id)
-                    .first()
-                )
+                habit = session.query(HabitBase).filter_by(name=name, user_id=user_id).first()
                 if not habit:
                     logger.warning(
                         f"Provided habit name: {name} for user {user_id} \
@@ -183,9 +195,7 @@ class HabitDatabase(SyncDatabase):
             logger.error(f"Marking habit {name} as done failed: {e}")
             return False
 
-    def create_new_user(
-        self, username: str, email: str, nickname: str, password: str
-    ) -> UserBase:
+    def create_new_user(self, username: str, email: str, nickname: str, password: str) -> UserBase:
         """Creates a new user in the database"""
         logger.info(f"Creating a new user with username: {username}.")
         try:

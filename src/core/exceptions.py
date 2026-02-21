@@ -53,3 +53,9 @@ class DatabaseException(RepositoryException):
     """Raised when a database operation fails."""
 
     pass
+
+
+class WeekRangeDateException(Exception):
+    """Raised when week start and its end are not present"""
+
+    pass
