@@ -277,6 +277,6 @@ def test_update_habit_returns_fresh_data(
 
     updated_habit = next((h for h in habits_after if h["id"] == habit_id), None)
     assert updated_habit is not None, "Habit should still exist after update"
-    assert (
-        updated_habit["frequency"] == new_frequency
-    ), f"Should return updated frequency '{new_frequency}', not cached '{frequency}'"
+    assert updated_habit["frequency"] == new_frequency, (
+        f"Should return updated frequency '{new_frequency}', not cached '{frequency}'"
+    )

@@ -1033,7 +1033,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "python-dateutil", specifier = ">=2.9.0.post0" },
     { name = "redis", specifier = ">=7.1.0" },
-    { name = "ruff", specifier = ">=0.14.4" },
+    { name = "ruff", specifier = ">=0.9.7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7.0" },
     { name = "sqlalchemy", extras = ["asyncio", "mypy"], specifier = ">=2.0.44" },
     { name = "testcontainers", extras = ["postgres", "redis"], specifier = ">=4.14.0" },
@@ -1051,7 +1051,7 @@ dev = [
     { name = "pre-commit", specifier = ">=4.3.0" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
-    { name = "ruff", specifier = ">=0.14.4" },
+    { name = "ruff", specifier = ">=0.9.7" },
 ]
 
 [[package]]

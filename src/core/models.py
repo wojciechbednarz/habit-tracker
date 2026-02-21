@@ -1,7 +1,7 @@
 """SQLAlchemy models for habits. Models for Habit and User"""
 
 import uuid
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import VARCHAR, Boolean, Column, DateTime, ForeignKey, String, func
@@ -17,7 +17,7 @@ class Base(DeclarativeBase):
     pass
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """User role for authorization"""
 
     USER = "user"

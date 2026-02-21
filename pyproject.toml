@@ -25,7 +25,7 @@ dependencies = [
     "pytest-asyncio>=1.3.0",
     "python-dateutil>=2.9.0.post0",
     "redis>=7.1.0",
-    "ruff>=0.14.4",
+    "ruff>=0.9.7",
     "sqlalchemy[asyncio,mypy]>=2.0.44",
     "testcontainers[postgres,redis]>=4.14.0",
     "types-redis>=4.6.0.20241004",
@@ -76,13 +76,25 @@ disable_error_code = "misc"
 plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 
 [[tool.mypy.overrides]]
+module = "conftest"
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
 module = "src.core.habit_async"
 disable_error_code = ["arg-type"]
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
+module = "conftest"
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
 module = "redis.asyncio.*"
 disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = "conftest"
+disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
 module = "redis.exceptions"
@@ -136,8 +148,12 @@ dev = [
     "pre-commit>=4.3.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.0.0",
-    "ruff>=0.14.4",
+    "ruff>=0.9.7",
 ]
+
+[[tool.mypy.overrides]]
+module = "conftest"
+disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
 module = "tests.*"
