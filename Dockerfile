@@ -27,6 +27,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY . /app
 
 # Install dependencies
-RUN uv sync --frozen
+RUN uv sync --frozen --no-dev && rm -rf /root/.cache/uv
 
 CMD ["uv", "run", "fastapi", "dev", "src/api/main.py", "--port", "8000", "--reload", "--host", "0.0.0.0"]

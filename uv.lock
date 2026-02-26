@@ -961,48 +961,36 @@ dependencies = [
     { name = "argon2-cffi" },
     { name = "asyncpg" },
     { name = "click" },
-    { name = "faker" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx" },
     { name = "jinja2" },
-    { name = "moto", extra = ["s3"] },
-    { name = "pipdeptree" },
-    { name = "pre-commit" },
     { name = "psycopg2-binary" },
     { name = "pwdlib" },
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
     { name = "python-dateutil" },
     { name = "redis" },
-    { name = "ruff" },
     { name = "sqlalchemy", extra = ["asyncio", "mypy"] },
-    { name = "testcontainers", extra = ["redis"] },
-    { name = "types-redis" },
     { name = "urllib3" },
     { name = "uvicorn" },
     { name = "weasyprint" },
 ]
 
-[package.optional-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "anyio" },
+    { name = "faker" },
+    { name = "moto", extra = ["s3"] },
     { name = "mypy" },
+    { name = "pipdeptree" },
     { name = "pre-commit" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "testcontainers", extra = ["redis"] },
+    { name = "types-redis" },
 ]
 
 [package.metadata]
@@ -1013,45 +1001,36 @@ requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "click", specifier = ">=8.3.0" },
-    { name = "faker", specifier = ">=38.2.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.121.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
-    { name = "moto", extras = ["s3", "ses", "sqs"], specifier = ">=5.1.21" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
-    { name = "pipdeptree", specifier = ">=2.30.0" },
-    { name = "pre-commit", specifier = ">=4.3.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.6.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pwdlib", specifier = ">=0.3.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.12.4" },
     { name = "pydantic-settings", extras = ["standard"], specifier = ">=2.12.0" },
     { name = "pyjwt", specifier = ">=2.10.1" },
-    { name = "pytest", specifier = ">=8.4.2" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", specifier = ">=1.3.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "python-dateutil", specifier = ">=2.9.0.post0" },
     { name = "redis", specifier = ">=7.1.0" },
-    { name = "ruff", specifier = ">=0.9.7" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7.0" },
     { name = "sqlalchemy", extras = ["asyncio", "mypy"], specifier = ">=2.0.44" },
-    { name = "testcontainers", extras = ["postgres", "redis"], specifier = ">=4.14.0" },
-    { name = "types-redis", specifier = ">=4.6.0.20241004" },
     { name = "urllib3", specifier = ">=2.6.3" },
     { name = "uvicorn", specifier = ">=0.38.0" },
     { name = "weasyprint", specifier = ">=68.0" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "anyio", specifier = ">=4.11.0" },
+    { name = "faker", specifier = ">=38.2.0" },
+    { name = "moto", extras = ["s3", "ses", "sqs"], specifier = ">=5.1.21" },
     { name = "mypy", specifier = ">=1.18.2" },
+    { name = "pipdeptree", specifier = ">=2.30.0" },
     { name = "pre-commit", specifier = ">=4.3.0" },
     { name = "pytest", specifier = ">=8.4.2" },
+    { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.9.7" },
+    { name = "testcontainers", extras = ["postgres", "redis"], specifier = ">=4.14.0" },
+    { name = "types-redis", specifier = ">=4.6.0.20241004" },
 ]
 
 [[package]]

@@ -40,8 +40,8 @@ class Settings(BaseSettings):
     AWS_SQS_STACK_NAME: str = "test-stack"
     AWS_S3_BUCKET_NAME: str = "test-bucket"
     AWS_SES_SENDER_EMAIL: str = "test@example.com"
-    AWS_ACCESS_KEY_ID: str = "testing"
-    AWS_SECRET_ACCESS_KEY: str = "testing"
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
     AWS_DYNAMODB_TABLE_NAME: str = "HabitTrackerData"
 
     # AI/LLM
