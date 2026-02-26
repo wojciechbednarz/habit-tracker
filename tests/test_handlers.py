@@ -13,7 +13,6 @@ from src.core.events.handlers import (
     Context,
     award_points,
     check_streaks,
-    mocked_dynamo_db,
     send_notification,
 )
 from src.core.models import HabitCompletion
@@ -31,12 +30,15 @@ HABIT_COMPLETIONS = [
 
 @pytest.mark.asyncio
 async def test_check_streaks_update_to_7_streak(mock_handler_context: Context, habit_completed_event_factory) -> None:
-    """Tests check_streaks method"""
+    """
+    Tests the check_streaks method for updating the streak count in DynamoDB when a new streak is achieved.
+    streak_count = 6 is used to simulate the scenario where the user has just completed
+    a habit and achieved a new streak of 7 days.
+    """
     mock_handler_context.habit_repo.get_completions_by_habit.return_value = HABIT_COMPLETIONS
-    event = habit_completed_event_factory(streak_count=5)
+    event = habit_completed_event_factory(streak_count=6)
     await check_streaks(event, mock_handler_context)
-    assert mocked_dynamo_db["streak_count"] == 7
-    mocked_dynamo_db.clear()
+    mock_handler_context.dynamo_db.put_streak.assert_called_once_with(event.user_id, event.habit_id, 7)
 
 
 @pytest.mark.asyncio
@@ -45,7 +47,8 @@ async def test_award_points_7_days_multiplier(mock_handler_context: Context, hab
     seven_days_points = BASE_POINTS_COMPLETION["base_points"] * BASE_POINTS_COMPLETION["streak_multiplier"][7]
     event = habit_completed_event_factory(streak_count=7)
     await award_points(event, mock_handler_context)
-    assert mocked_dynamo_db["award_points"] == seven_days_points
+    # assert mocked_dynamo_db["award_points"] == seven_days_points
+    mock_handler_context.dynamo_db.update_points.assert_called_once_with(event.user_id, seven_days_points)
 
 
 @pytest.mark.asyncio
@@ -54,7 +57,7 @@ async def test_award_points_30_days_multiplier(mock_handler_context: Context, ha
     thirty_days_points = BASE_POINTS_COMPLETION["base_points"] * BASE_POINTS_COMPLETION["streak_multiplier"][30]
     event = habit_completed_event_factory(streak_count=30)
     await award_points(event, mock_handler_context)
-    assert mocked_dynamo_db["award_points"] == thirty_days_points
+    mock_handler_context.dynamo_db.update_points.assert_called_once_with(event.user_id, thirty_days_points)
 
 
 @pytest.mark.asyncio
@@ -63,7 +66,7 @@ async def test_award_points_100_days_multiplier(mock_handler_context: Context, h
     hundred_days_points = BASE_POINTS_COMPLETION["base_points"] * BASE_POINTS_COMPLETION["streak_multiplier"][100]
     event = habit_completed_event_factory(streak_count=100)
     await award_points(event, mock_handler_context)
-    assert mocked_dynamo_db["award_points"] == hundred_days_points
+    mock_handler_context.dynamo_db.update_points.assert_called_once_with(event.user_id, hundred_days_points)
 
 
 @pytest.mark.asyncio

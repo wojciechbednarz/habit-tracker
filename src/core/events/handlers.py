@@ -12,6 +12,7 @@ from uuid import uuid4
 from config import settings
 from src.core.events.events import AchievementUnlockedEvent, HabitCompletedEvent
 from src.core.models import HabitCompletion
+from src.infrastructure.aws.dynamodb_client import DynamoDBClient
 from src.infrastructure.aws.email_client import SESClient
 from src.repository.habit_repository import HabitRepository
 from src.repository.user_repository import UserRepository
@@ -33,9 +34,6 @@ BASE_POINTS_COMPLETION: dict[str, Any] = {
 }
 
 
-mocked_dynamo_db = {}  # This is a placeholder for the DynamoDB table
-
-
 @dataclass
 class Context:
     """Context dataclass for injecting the instances"""
@@ -43,6 +41,7 @@ class Context:
     user_repo: UserRepository
     habit_repo: HabitRepository
     ses_client: SESClient
+    dynamo_db: DynamoDBClient
 
 
 def subscribe(event_type: type) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
@@ -66,7 +65,7 @@ def subscribe(event_type: type) -> Callable[[Callable[..., Any]], Callable[..., 
     return wrapper
 
 
-def _check_habit_consecutive_days(completions: list[HabitCompletion]) -> int:
+def check_habit_consecutive_days(completions: list[HabitCompletion]) -> int:
     """
     Helper function to check how many consecutive days there are in the
     list of completions.
@@ -119,9 +118,9 @@ async def check_streaks(event: HabitCompletedEvent, context: Context) -> None:
     from src.core.events.dispatcher import dispatch
 
     completed_descending_habits = await context.habit_repo.get_completions_by_habit(event.habit_id)
-    streak = _check_habit_consecutive_days(completed_descending_habits)
+    streak = check_habit_consecutive_days(completed_descending_habits)
     if streak > event.streak_count:
-        mocked_dynamo_db["streak_count"] = streak
+        await context.dynamo_db.put_streak(event.user_id, event.habit_id, streak)
     milestone = _check_milestone(streak)
     if milestone:
         achievement_event = AchievementUnlockedEvent(
@@ -142,12 +141,6 @@ async def award_points(event: HabitCompletedEvent, context: Context) -> None:
     :context: The Context object containing repositories and clients for handling
     the event
     :return: None
-    TO DO: The point awarding logic is currently mocked. In a real implementation, this
-    would involve updating the user's points in the database using the UserRepository.
-    The points awarded are based on the base points for habit completion and multipliers
-    for streak milestones (7-day, 30-day, 100-day).
-    The mocked_dynamo_db is used here to simulate the points calculation for
-    testing purposes.
     """
 
     streaks = event.streak_count
@@ -160,9 +153,7 @@ async def award_points(event: HabitCompletedEvent, context: Context) -> None:
         count = BASE_POINTS_COMPLETION["base_points"] * BASE_POINTS_COMPLETION["streak_multiplier"][7]
     else:
         count = BASE_POINTS_COMPLETION["base_points"]
-    mocked_dynamo_db["award_points"] = count
-    # this will be something like await context.user_repo.add_points(
-    # event.user_id,points=count)
+    await context.dynamo_db.update_points(event.user_id, count)
 
 
 @timer

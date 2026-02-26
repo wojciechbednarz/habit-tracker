@@ -658,7 +658,7 @@ def async_runner() -> Callable[[Coroutine[Any, Any, Any]], Any]:
 @pytest_asyncio.fixture
 async def mock_handler_context() -> "Context":
     r"""Mocks the context needed for handler methods from src\core\events\handlers.py"""
-    context = Context(user_repo=AsyncMock(), habit_repo=AsyncMock(), ses_client=AsyncMock())
+    context = Context(user_repo=AsyncMock(), habit_repo=AsyncMock(), ses_client=AsyncMock(), dynamo_db=AsyncMock())
     return context
 
 

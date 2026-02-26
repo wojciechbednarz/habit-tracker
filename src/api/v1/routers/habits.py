@@ -200,14 +200,14 @@ async def complete_habit(
     habit = await habit_manager.get_specific_habit(habit_id)
     if current_user.user_id != habit.user_id:
         raise HTTPException(status_code=403, detail="Not your habit")
-    await habit_manager.complete_habit(habit_id)
+    new_streak = await habit_manager.complete_habit(habit_id)
     event = HabitCompletedEvent(
         event_id=uuid4(),
         user_id=current_user.user_id,
         habit_id=habit.id,
         timestamp=datetime.now(),
         completed_date=datetime.now(),
-        streak_count=0,
+        streak_count=new_streak,
     )
     background_tasks.add_task(dispatch, event, event_context)
     return {"message": "Habit completion logged"}

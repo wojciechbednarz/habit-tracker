@@ -15,6 +15,7 @@ from src.core.schemas import TokenData, User, UserInDB, UserWithRole
 from src.core.security import decode_token, verify_password
 from src.infrastructure.ai.ollama_client import OllamaClient
 from src.infrastructure.aws.aws_helper import AWSSessionManager
+from src.infrastructure.aws.dynamodb_client import DynamoDBClient
 from src.infrastructure.aws.email_client import SESClient
 from src.infrastructure.aws.queue_client import SQSClient
 from src.repository.habit_repository import HabitRepository
@@ -149,10 +150,17 @@ async def get_habit_repository() -> HabitRepository:
     return HabitRepository(get_session_maker(get_async_engine()), get_async_engine())
 
 
+async def get_dynamodb_client() -> DynamoDBClient:
+    """Returns an instance of DynamoDBClient for dependency injection."""
+    aws_session_manager = await get_aws_session_manager()
+    return DynamoDBClient(aws_session_manager)
+
+
 async def get_events_context(
     user_repo: Annotated[UserRepository, Depends(get_user_repository)],
     habit_repo: Annotated[HabitRepository, Depends(get_habit_repository)],
     ses_client: Annotated[SESClient, Depends(get_ses_client)],
+    dynamodb_client: Annotated[DynamoDBClient, Depends(get_dynamodb_client)],
 ) -> Context:
     """
     Returns a Context instance for dependency injection in event handlers.
@@ -161,11 +169,7 @@ async def get_events_context(
     :ses_client: SESClient instance to be injected into the Context
     :return: Context instance with the injected dependencies
     """
-    return Context(
-        user_repo=user_repo,
-        habit_repo=habit_repo,
-        ses_client=ses_client,
-    )
+    return Context(user_repo=user_repo, habit_repo=habit_repo, ses_client=ses_client, dynamo_db=dynamodb_client)
 
 
 async def get_ollama_client() -> OllamaClient:

@@ -42,8 +42,9 @@ class Settings(BaseSettings):
     AWS_SES_SENDER_EMAIL: str = "test@example.com"
     AWS_ACCESS_KEY_ID: str = "testing"
     AWS_SECRET_ACCESS_KEY: str = "testing"
+    AWS_DYNAMODB_TABLE_NAME: str = "HabitTrackerData"
 
-    # AI
+    # AI/LLM
     OLLAMA_URL: str = "http://localhost:11434"
 
     @classmethod

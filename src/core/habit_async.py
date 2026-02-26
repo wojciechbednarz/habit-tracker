@@ -6,6 +6,7 @@ import asyncio
 from uuid import UUID
 
 from src.core.db import AsyncDatabase
+from src.core.events.handlers import check_habit_consecutive_days
 from src.core.exceptions import HabitNotFoundException, UserNotFoundException
 from src.core.habit import HabitFormatter
 from src.core.models import HabitBase, UserBase
@@ -272,6 +273,14 @@ class AsyncHabitService:
         logger.info(f"Retrieved {len(habits)} at-risk habits for user ID: {user_id}")
         return [HabitResponse.model_validate(habit) for habit in habits]
 
+    async def get_streak_for_habit(self, habit_id: UUID) -> int:
+        """Get the current streak count for a specific habit."""
+        logger.info(f"Calculating streak for habit with ID: {habit_id}")
+        completions = await self.habit_repo.get_completions_by_habit(habit_id)
+        streak = check_habit_consecutive_days(completions)
+        logger.info(f"Current streak for habit ID {habit_id}: {streak} days")
+        return streak
+
     async def update_habit(self, updates: HabitUpdate, habit_id: UUID) -> bool:
         """
         Update an existing habit.
@@ -383,9 +392,15 @@ class AsyncHabitManager:
         """Updates specific value relate to the habit"""
         return await self.service.update_habit(updates, habit_id)
 
-    async def complete_habit(self, habit_id: UUID) -> None:
-        """Mark a habit as completed."""
+    async def complete_habit(self, habit_id: UUID) -> int:
+        """
+        Marks a habit as completed and returns the current streak count for the habit.
+
+        :habit_id: Unique ID of the habit to mark as completed
+        :return: Current streak count for the habit after marking it as completed
+        """
         await self.service.log_habit_completion(habit_id)
+        return await self.service.get_streak_for_habit(habit_id)
 
     async def clear_all_habits(self) -> None:
         """Delete all habits for all users."""
@@ -420,6 +435,10 @@ class AsyncHabitManager:
         """
         habits = await self.service.get_at_risk_habits(user_id, threshold_days)
         return habits
+
+    async def get_streak_for_habit(self, habit_id: UUID) -> int:
+        """Get the current streak count for a specific habit."""
+        return await self.service.get_streak_for_habit(habit_id)
 
 
 if __name__ == "__main__":

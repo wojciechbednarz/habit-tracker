@@ -114,6 +114,8 @@ The application follows a **layered hexagonal architecture** pattern with clear 
 
 ### Database & ORM
 - **PostgreSQL 15+** - Primary relational database
+- **AWS DynamoDB** - NoSQL database for real-time analytics and leaderboard (like user achievements and points)
+  - See [DYNAMODB_DESIGN.md](./src/infrastructure/aws/DYNAMODB_DESIGN.md) for detailed Single-Table Design patterns.
 - **SQLAlchemy 2.0.44+** - Async-capable ORM with type hints
 - **Alembic 1.17.2+** - Database versioning and migrations
 - **asyncpg** - Async PostgreSQL driver
@@ -543,11 +545,12 @@ habit-tracker/
 │   │   ├── ai/                    # AI/ML integrations
 │   │   │   └── ollama_client.py # Ollama LLM client for habit coaching
 │   │   ├── aws/                   # AWS service integrations
-│   │   │   ├── aws_helper.py    # AWS session and stack management
-│   │   │   ├── email_client.py  # AWS SES email delivery
-│   │   │   ├── queue_client.py  # AWS SQS job queue management
-│   │   │   ├── s3_client.py     # AWS S3 file storage
-│   │   │   └── worker.py        # Background job processing
+│   │   │   ├── aws_helper.py      # AWS session and stack management
+|   |   |   ├── dynamodb_client.py # AWS DynamoDB data storage
+│   │   │   ├── email_client.py    # AWS SES email delivery
+│   │   │   ├── queue_client.py    # AWS SQS job queue management
+│   │   │   ├── s3_client.py       # AWS S3 file storage
+│   │   │   └── worker.py          # Background job processing
 │   │   └── pdf/                   # Report generation
 │   │       ├── report_pdf.py    # PDF document generation
 │   │       └── reports_service.py # Report data aggregation
