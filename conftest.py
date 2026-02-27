@@ -1,6 +1,6 @@
 """conftest.py - Pytest fixtures for habit tracker tests."""
 
-import asyncio
+import json
 import random
 import uuid
 from collections.abc import AsyncGenerator, Callable, Coroutine, Generator
@@ -34,6 +34,7 @@ from src.api.v1.routers.dependencies import (
     get_user_manager,
     require_admin,
 )
+from src.core.ai_service import AIService
 from src.core.cache import RedisManager
 from src.core.db import AsyncDatabase, SyncDatabase
 from src.core.events.events import HabitCompletedEvent
@@ -48,6 +49,7 @@ from src.core.habit_async import (
 from src.core.models import Base, HabitBase, UserBase
 from src.core.schemas import User, UserUpdate, UserWithRole
 from src.core.security import get_password_hash
+from src.infrastructure.ai.ai_client import OllamaClient
 from src.repository.habit_repository import HabitRepository
 from src.repository.user_repository import UserRepository
 
@@ -102,6 +104,55 @@ def fake_user_data_factory() -> Callable[[], tuple[str, str, str, str]]:
         return username, email, nickname, password
 
     return _make_user_data
+
+
+@pytest.fixture
+def ollama_client() -> OllamaClient:
+    client = OllamaClient()
+    ollama_url = "http://localhost:11434"
+    client.base_url = ollama_url
+    client.chat_url = f"{ollama_url}/api/chat"
+    client.endpoint_url = client.chat_url
+    return client
+
+
+@pytest.fixture
+def user_context() -> dict[str, Any]:
+    return {
+        "user_profile": {
+            "user_id": "00000000-0000-0000-0000-000000000000",
+            "username": "testuser",
+            "email": "testuser@example.com",
+            "nickname": "TestUser",
+            "created_at": "2024-01-01T00:00:00Z",
+        },
+        "habits": [
+            {
+                "name": "Exercise",
+                "description": "Daily morning workout",
+                "frequency": "Daily",
+                "mark_done": False,
+                "created_at": "2024-01-01T00:00:00Z",
+                "tags": "fitness, health",
+            }
+        ],
+    }
+
+
+@pytest.fixture()
+def mock_ai_model_response_content() -> dict[str, Any]:
+    return {
+        "message": {
+            "content": json.dumps(
+                {
+                    "habit_name": "Exercise",
+                    "reasoning": "Keep going!",
+                    "advice_tip": "Try morning workouts.",
+                    "priority": "High",
+                }
+            )
+        }
+    }
 
 
 # ==================== SYNC FIXTURES ====================
@@ -639,22 +690,6 @@ async def mocked_user_manager(
     return AsyncUserManager(service=mocked_user_service)
 
 
-@pytest.fixture
-def async_runner() -> Callable[[Coroutine[Any, Any, Any]], Any]:
-    """Helper to run async operations in sync tests without event loop conflicts."""
-
-    def _run(coro: Coroutine[Any, Any, Any]) -> Any:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(coro)
-        finally:
-            loop.close()
-            asyncio.set_event_loop(None)
-
-    return _run
-
-
 @pytest_asyncio.fixture
 async def mock_handler_context() -> "Context":
     r"""Mocks the context needed for handler methods from src\core\events\handlers.py"""
@@ -677,3 +712,9 @@ async def habit_completed_event_factory() -> "Callable[[int], HabitCompletedEven
         )
 
     return _make_event
+
+
+@pytest_asyncio.fixture(scope="function")
+async def ai_service() -> AIService:
+    """Create an AIService instance with mocked repositories."""
+    return AIService(user_repo=AsyncMock(), habit_repo=AsyncMock())

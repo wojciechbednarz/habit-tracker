@@ -11,7 +11,7 @@ from src.api.v1.routers.dependencies import (
 from src.core.schemas import User
 from src.infrastructure.aws.queue_client import SQSClient
 
-router = APIRouter(prefix="/api/reports", tags=["reports"])
+router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
 
 @router.post("/", status_code=status.HTTP_202_ACCEPTED)

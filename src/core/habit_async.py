@@ -3,6 +3,8 @@ with API endpoints.
 """
 
 import asyncio
+from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from src.core.db import AsyncDatabase
@@ -12,7 +14,7 @@ from src.core.habit import HabitFormatter
 from src.core.models import HabitBase, UserBase
 from src.core.schemas import HabitCreate, HabitResponse, HabitUpdate, UserUpdate
 from src.core.security import get_password_hash
-from src.infrastructure.ai.ollama_client import OllamaClient
+from src.infrastructure.ai.ai_client import OllamaClient
 from src.repository.habit_repository import HabitRepository
 from src.repository.user_repository import UserRepository
 from src.utils.helpers import normalize_habit_name
@@ -341,6 +343,21 @@ class AsyncHabitService:
             raise HabitNotFoundException(f"Habit with ID {habit_id} not found")
         return deleted
 
+    async def get_habit_analytics(self, habit_id: UUID) -> dict[str, Any]:
+        """Get analytics for a specific habit."""
+        logger.info(f"Fetching analytics for habit with ID: {habit_id}")
+        streak = await self.get_streak_for_habit(habit_id)
+        days_completed = await self.habit_repo.get_completions_by_habit(habit_id)
+        if not days_completed:
+            habit = await self.habit_repo.get_specific_habit_for_user(habit_id)
+            if not habit:
+                raise HabitNotFoundException(f"Habit with ID '{habit_id}' not found")
+            last_date = habit.created_at
+        else:
+            last_date = days_completed[0].completed_at
+        diff = datetime.now() - last_date
+        return {"streak": streak, "days_missed": diff.days}
+
 
 class AsyncHabitManager:
     """High-level interface for habit management."""
@@ -439,6 +456,10 @@ class AsyncHabitManager:
     async def get_streak_for_habit(self, habit_id: UUID) -> int:
         """Get the current streak count for a specific habit."""
         return await self.service.get_streak_for_habit(habit_id)
+
+    async def get_habit_analytics(self, habit_id: UUID) -> dict[str, Any]:
+        """Get analytics for a specific habit."""
+        return await self.service.get_habit_analytics(habit_id)
 
 
 if __name__ == "__main__":

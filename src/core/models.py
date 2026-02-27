@@ -1,6 +1,7 @@
 """SQLAlchemy models for habits. Models for Habit and User"""
 
 import uuid
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
@@ -14,7 +15,19 @@ __all__ = ["Base", "HabitBase", "UserBase", "HabitCompletion"]
 class Base(DeclarativeBase):
     """Base class for SQLAlchemy models"""
 
-    pass
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Converts the SQLAlchemy model instance to a dictionary,
+        excluding sensitive fields like passwords.
+        Formats UUID and datetime fields as strings for better readability.
+        :return: A dictionary representation of the model instance.
+        """
+        return {
+            column.key: (str(val) if isinstance(val, (UUID, datetime)) else val)
+            for column in self.__table__.columns
+            if "password" not in column.key
+            for val in [getattr(self, column.key)]
+        }
 
 
 class UserRole(StrEnum):
@@ -64,10 +77,6 @@ class UserBase(Base):
             f"email_address={self.email}, nickname={self.nickname}, "
             f"role={self.role}, created_at={self.created_at})"
         )
-
-    def to_dict(self) -> dict[str, Any]:
-        """Transform database specific data to dictionary"""
-        return {column.key: getattr(self, column.key) for column in self.__table__.columns}
 
 
 class HabitCompletion(Base):

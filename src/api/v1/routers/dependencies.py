@@ -7,13 +7,14 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 
 from config import settings
+from src.core.ai_service import AIService
 from src.core.db import get_async_engine, get_session_maker
 from src.core.events.handlers import Context
 from src.core.habit_async import AsyncHabitManager, AsyncUserManager
 from src.core.models import UserBase
 from src.core.schemas import TokenData, User, UserInDB, UserWithRole
 from src.core.security import decode_token, verify_password
-from src.infrastructure.ai.ollama_client import OllamaClient
+from src.infrastructure.ai.ai_client import OllamaClient
 from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.infrastructure.aws.dynamodb_client import DynamoDBClient
 from src.infrastructure.aws.email_client import SESClient
@@ -34,7 +35,7 @@ async def get_user_manager() -> AsyncUserManager:
 
 async def get_habit_manager() -> AsyncHabitManager:
     """Returns habit manager class  for dependency injection"""
-    return AsyncHabitManager(ollama_client=OllamaClient())
+    return AsyncHabitManager(ollama_client=await get_ollama_client())
 
 
 async def get_redis_manager(request: Request) -> Any:
@@ -175,3 +176,8 @@ async def get_events_context(
 async def get_ollama_client() -> OllamaClient:
     """Returns an instance of OllamaClient for dependency injection."""
     return OllamaClient()
+
+
+async def get_ai_service() -> AIService:
+    """Returns an instance of AIService for dependency injection."""
+    return AIService(habit_repo=await get_habit_repository(), user_repo=await get_user_repository())

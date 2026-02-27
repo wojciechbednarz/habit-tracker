@@ -10,7 +10,7 @@ from src.api.v1.routers.dependencies import get_current_active_user, get_user_ma
 from src.core.habit_async import AsyncUserManager
 from src.core.schemas import User, UserCreate, UserResponse, UserUpdate
 
-router = APIRouter(prefix="/api/users", tags=["users"])
+router = APIRouter(prefix="/api/v1/users", tags=["users"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 

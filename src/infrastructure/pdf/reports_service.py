@@ -1,7 +1,6 @@
 """Stats report generating functionalities"""
 
 import os
-import typing
 from datetime import datetime, time, timedelta
 from itertools import groupby
 from typing import Any
@@ -121,7 +120,7 @@ class ReportService:
             return None
         return weekly_report
 
-    def render_html_report(self, report: WeeklyReport) -> str:
+    def render_html_report(self, report: WeeklyReport) -> Any:
         """
         Renders the weekly report to an HTML string using Jinja2 templates.
 
@@ -137,7 +136,7 @@ class ReportService:
                 start_date=report.start_date,
                 end_date=report.end_date,
             )
-            return typing.cast(str, html_output)
+            return html_output
         except TemplateError as e:
             logger.error(f"There was an error during rendering a templat: {e}")
             raise

@@ -10,8 +10,6 @@ from src.api.v1.routers.dependencies import (
     get_current_active_user,
     get_events_context,
     get_habit_manager,
-    get_habit_repository,
-    get_ollama_client,
     get_redis_manager,
 )
 from src.core.cache import RedisManager
@@ -20,11 +18,9 @@ from src.core.events.events import HabitCompletedEvent
 from src.core.events.handlers import Context
 from src.core.habit_async import AsyncHabitManager
 from src.core.schemas import HabitCreate, HabitResponse, HabitUpdate, User
-from src.infrastructure.ai.ollama_client import OllamaClient
-from src.repository.habit_repository import HabitRepository
 from src.utils.decorators import cache_habits_response, delete_habit_cache
 
-router = APIRouter(prefix="/api/habits", tags=["habits"])
+router = APIRouter(prefix="/api/v1/habits", tags=["habits"])
 
 
 @router.get("/")
@@ -55,59 +51,6 @@ async def get_habit(
             detail="Cannot access habits for other users",
         )
     return habit
-
-
-@router.get("/at-risk")
-@cache_habits_response(ttl=3600)
-async def get_at_risk_habits_with_advice(
-    habit_manager: Annotated[AsyncHabitManager, Depends(get_habit_manager)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
-    redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
-) -> list[HabitResponse] | Any:
-    """
-    Gets all 'at risk' habits list by sending a GET request.
-
-    A habit is considered 'at risk' if there is a gap of 3 or more days without
-    completion after the last completion.
-
-    :habit_manager: AsyncHabitManager instance for accessing habit-related operations
-    :current_user: User object representing the currently authenticated user
-    :redis_cache: RedisManager instance for caching the response
-    :return: List of at-risk habits as HabitResponse objects or cached response
-    """
-    habits = await habit_manager.get_at_risk_habits(current_user.user_id)
-    return habits
-
-
-@router.get("/at-risk/ai-coach")
-async def get_at_risk_habits_ai_coach(
-    user_id: UUID,
-    repo: Annotated[HabitRepository, Depends(get_habit_repository)],
-    ollama_client: Annotated[OllamaClient, Depends(get_ollama_client)],
-) -> list[dict[str, Any]]:
-    """
-    Gets all 'at risk' habits list with AI-generated advice by sending a GET request.
-
-    TODO: Implement getting of streak and days missed for each habit to pass
-    to the AI model instead of hardcoded values.
-
-    :user_id: The ID of the user for whom to retrieve at-risk habits
-    :repo: HabitRepository instance for accessing habit-related database operations
-    :ollama_client: OllamaClient instance for getting AI-generated advice
-    :return: List of at-risk habits with AI advice as a list of dictionaries
-    containing habit and advice information
-    """
-    at_risk_habits = await repo.get_at_risk_habits(user_id)
-    results = []
-
-    for habit in at_risk_habits:
-        advice = await ollama_client.get_habit_advice(
-            habit_name=str(habit.name),
-            streak=5,  # Hardcoded placeholder
-            days_missed=3,  # Hardcoded placeholder (since threshold is 3)
-        )
-        results.append({"habit": habit, "ai_coach": advice})
-    return results
 
 
 @router.delete("/{habit_id}", status_code=204)

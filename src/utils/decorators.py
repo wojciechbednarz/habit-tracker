@@ -22,8 +22,8 @@ def cache_habits_response(
     Decorator to cache habits list response using Redis.
     Specifically for endpoints that return list[HabitResponse].
 
-    Args:
-        ttl: Time to live in seconds. Defaults to 3600.
+    :ttl: Time to live for the cache in seconds (default: 3600 seconds or 1 hour)
+    :return: Decorator function
     """
 
     def decorator(
@@ -111,3 +111,44 @@ def timer(func: Callable[..., Any]) -> Callable[..., Any]:
         return result
 
     return wrapper
+
+
+def cache_result(ttl: int, prefix: str) -> Callable[..., Any]:
+    """
+    Decorator to cache the result of a function in Redis with a specified TTL and key prefix.
+
+    :ttl: Time to live for the cache in seconds
+    :prefix: Prefix for the cache key to avoid collisions
+    :return: Decorator function
+    """
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        """Decorator function to wrap the method"""
+
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            """
+            Wrapper function to handle caching logic -
+            getting and setting the objects in the cache memory.
+            """
+            redis_cache = kwargs.get("redis_cache")
+            current_user = kwargs.get("current_user")
+            if not redis_cache:
+                logger.warning("No Redis cache provided, skipping caching...")
+                return await func(*args, **kwargs)
+            if not current_user or not current_user.user_id:
+                logger.warning("No user found in kwargs, skipping cache...")
+                return await func(*args, **kwargs)
+            redis_key = f"{prefix}:{current_user.user_id}"
+            cached_data = await redis_cache.service.get_object(redis_key)
+            if cached_data:
+                logger.info(f"Cache hit for key: {redis_key}")
+                return cached_data
+            logger.info(f"Cache miss for key: {redis_key}")
+            result = await func(*args, **kwargs)
+            await redis_cache.service.set_object(redis_key, result, ttl)
+            return result
+
+        return wrapper
+
+    return decorator
