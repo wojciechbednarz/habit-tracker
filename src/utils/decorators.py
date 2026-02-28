@@ -1,6 +1,5 @@
 """Decorator utility methods"""
 
-import time
 from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any
@@ -8,6 +7,7 @@ from typing import Any
 from src.core.cache import RedisKeys
 from src.core.schemas import HabitResponse
 from src.utils.logger import setup_logger
+from src.utils.timer import timer as timer
 
 logger = setup_logger(__name__)
 
@@ -88,26 +88,6 @@ def delete_habit_cache(
         result = await func(*args, **kwargs)
         list_key = RedisKeys.user_habits_cache_key(current_user.user_id)
         await redis_cache.service.delete_object(list_key)
-        return result
-
-    return wrapper
-
-
-def timer(func: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Decorator method to measure the function execution time.
-
-    :func: Function to be wrapped
-    :return: Wrapped function
-    """
-
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        """Wrapper function for time measure"""
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        calc_time = end_time - start_time
-        logger.info(f"Elapsed time for the function {func.__name__} is: {calc_time:.4f}s")
         return result
 
     return wrapper
