@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
+from config import settings
 from src.api.v1.routers.dependencies import (
     get_current_active_user,
     get_events_context,
@@ -20,7 +21,7 @@ from src.core.habit_async import AsyncHabitManager
 from src.core.schemas import HabitCreate, HabitResponse, HabitUpdate, User
 from src.utils.decorators import cache_habits_response, delete_habit_cache
 
-router = APIRouter(prefix="/api/v1/habits", tags=["habits"])
+router = APIRouter(prefix=f"{settings.API_V1_STR}/habits", tags=["habits"])
 
 
 @router.get("/")

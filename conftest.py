@@ -718,3 +718,15 @@ async def habit_completed_event_factory() -> "Callable[[int], HabitCompletedEven
 async def ai_service() -> AIService:
     """Create an AIService instance with mocked repositories."""
     return AIService(user_repo=AsyncMock(), habit_repo=AsyncMock())
+
+
+@pytest_asyncio.fixture
+async def ai_service_factory() -> Callable[[], AIService]:
+    """
+    Create an AIService instance with mocked repositories and return a factory for it.
+    """
+
+    def _ai_service_factory() -> AIService:
+        return AIService(user_repo=AsyncMock(), habit_repo=AsyncMock())
+
+    return _ai_service_factory

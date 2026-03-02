@@ -35,6 +35,7 @@ dependencies = [
 dev = [
     "anyio>=4.11.0",
     "faker>=38.2.0",
+    "hypothesis>=6.151.9",
     "moto[s3,ses,sqs]>=5.1.21",
     "mypy>=1.18.2",
     "pipdeptree>=2.30.0",

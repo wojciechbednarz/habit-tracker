@@ -1,4 +1,4 @@
-"""User-related API endpoints."""
+"""This module defines the API endpoints for user management in the Habit Tracker application."""
 
 from typing import Annotated, cast
 from uuid import UUID
@@ -6,11 +6,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
+from config import settings
 from src.api.v1.routers.dependencies import get_current_active_user, get_user_manager
 from src.core.habit_async import AsyncUserManager
 from src.core.schemas import User, UserCreate, UserResponse, UserUpdate
 
-router = APIRouter(prefix="/api/v1/users", tags=["users"])
+router = APIRouter(prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 

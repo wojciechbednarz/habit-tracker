@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from config import settings
-from src.api.v1.routers import admin, habits, security, users
+from src.api.v1.routers import admin, ai, habits, reports, security, users
 from src.core.cache import RedisManager
 from src.core.exception_handlers import register_exception_handlers
 from src.core.habit_async import AsyncUserManager
@@ -36,6 +36,8 @@ app.include_router(habits.router)
 app.include_router(users.router)
 app.include_router(admin.router)
 app.include_router(security.router)
+app.include_router(ai.router)
+app.include_router(reports.router)
 register_exception_handlers(app)
 
 

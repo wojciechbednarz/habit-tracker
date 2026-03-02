@@ -5,8 +5,10 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
-from src.core.events.events import AchievementUnlockedEvent
+from src.core.events.events import AchievementUnlockedEvent, HabitCompletedEvent
 from src.core.events.handlers import Context, award_points, check_habit_consecutive_days
 from src.core.models import HabitCompletion
 
@@ -93,3 +95,12 @@ async def test_award_points_multipliers(mock_handler_context: Context, habit_com
     event = habit_completed_event_factory(streak_count=100)
     await award_points(event, mock_handler_context)
     mock_handler_context.dynamo_db.update_points.assert_called_with(event.user_id, 100)
+
+
+@given(st.builds(HabitCompletedEvent))
+def test_habit_completed_serialization(event):
+    serialized = event.model_dump_json()
+    deserialized = HabitCompletedEvent.model_validate_json(serialized)
+
+    assert event.event_id == deserialized.event_id
+    assert event.streak_count == deserialized.streak_count

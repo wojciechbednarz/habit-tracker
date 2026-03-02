@@ -8,6 +8,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from config import settings
 from src.api.v1.routers.dependencies import (
     get_ai_service,
     get_current_active_user,
@@ -22,7 +23,7 @@ from src.core.schemas import HabitAdvice, HabitResponse, User
 from src.infrastructure.ai.ai_client import OllamaClient
 from src.utils.decorators import cache_result, timer
 
-router = APIRouter(prefix="/api/v1/ai", tags=["habits"])
+router = APIRouter(prefix=f"{settings.API_V1_STR}/ai", tags=["habits"])
 
 
 @router.get("/advice")

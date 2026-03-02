@@ -9,18 +9,6 @@ import pytest
 from src.core.models import HabitBase, HabitCompletion
 from src.infrastructure.pdf.reports_service import ReportService, WeeklyReport
 
-# HABITS_REPORT_LIST = [
-#     {
-#         "name": "Drink Water",
-#         "total": 5,
-#         "days": ["Mon", "Tue", "Wed"],
-#         "status": "Active",
-#     },
-#     {"name": "Exercise", "total": 3, "days": ["Mon", "Wed"], "status": "Missed"},
-#     {"name": "Read Book", "total": 0, "days": [], "status": "Missed"},
-# ]
-
-
 HABIT_REPORT = WeeklyReport(
     user_id=uuid4(),
     start_date=datetime(2026, 1, 26, 0, 0, 0),

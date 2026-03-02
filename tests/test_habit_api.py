@@ -3,14 +3,14 @@ Integration tests testing API endpoints related to habit-tracker app using tempo
 SQlite database and redis with testcontainers.
 """
 
-from collections.abc import AsyncGenerator
 from typing import Any, cast
 from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
 
-from src.core.models import HabitBase, UserBase
+from config import settings
+from src.core.models import HabitBase
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -40,9 +40,9 @@ def test_get_all_habits(
         "description": description,
         "frequency": frequency,
     }
-    response1 = authenticated_as_user_api_client.post(url="api/habits", json=json_content)
+    response1 = authenticated_as_user_api_client.post(url=f"{settings.API_V1_STR}/habits", json=json_content)
     assert response1.status_code == 200
-    response2 = authenticated_as_user_api_client.get(url="api/habits")
+    response2 = authenticated_as_user_api_client.get(url=f"{settings.API_V1_STR}/habits")
     assert response2.status_code == 200
 
 
@@ -56,7 +56,7 @@ def test_create_user_positive(username, email, nickname, password, api_client: T
         "nickname": nickname,
         "password": password,
     }
-    response = api_client.post(url="/api/users", json=user_content)
+    response = api_client.post(url=f"{settings.API_V1_STR}/users", json=user_content)
     response_json = response.json()
     logger.info(response_json)
     expected_response = {
@@ -83,7 +83,7 @@ def test_create_habit_positive(
         "description": description,
         "frequency": frequency,
     }
-    response = authenticated_as_user_api_client.post(url="/api/habits", json=json_content)
+    response = authenticated_as_user_api_client.post(url=f"{settings.API_V1_STR}/habits", json=json_content)
     response_json = response.json()
     expected_response = {"message": "Habit created", "id": str(response_json["id"])}
     assert response.status_code == 200
@@ -97,7 +97,7 @@ def test_delete_user_positive(
 ) -> None:
     """Deletes the user via DELETE request"""
     response = authenticated_as_user_api_client.delete(
-        url="/api/users/me", params={"email": async_test_user_sqlite["user"].email}
+        url=f"{settings.API_V1_STR}/users/me", params={"email": async_test_user_sqlite["user"].email}
     )
     assert response.status_code == 204
 
@@ -109,7 +109,7 @@ def test_delete_habit_positive(
 ) -> None:
     """Deletes the habit via DELETE request"""
     response = authenticated_as_user_api_client.delete(
-        url=f"/api/habits/{async_test_habit.id}",
+        url=f"{settings.API_V1_STR}/habits/{async_test_habit.id}",
         params={"id": async_test_habit.id},
     )
     assert response.status_code == 204
@@ -122,15 +122,13 @@ def test_delete_habits_positive(
 ) -> None:
     """Deletes all habits for a user via DELETE request"""
     response = authenticated_as_user_api_client.delete(
-        url="/api/habits/", params={"user_id": async_test_user_sqlite["user"].user_id}
+        url=f"{settings.API_V1_STR}/habits/", params={"user_id": async_test_user_sqlite["user"].user_id}
     )
     assert response.status_code == 204
 
 
 @pytest.mark.integration
-def test_login_for_access_token_positive(
-    api_client: TestClient, async_test_user_sqlite: AsyncGenerator[UserBase]
-) -> None:
+def test_login_for_access_token_positive(api_client: TestClient, async_test_user_sqlite: dict[str, Any]) -> None:
     """Performs positive test of user login API endpoint"""
     response = api_client.post(
         url="/token",
@@ -147,9 +145,7 @@ def test_login_for_access_token_positive(
 
 
 @pytest.mark.integration
-def test_login_for_access_token_negative(
-    api_client: TestClient, async_test_user_sqlite: AsyncGenerator[UserBase]
-) -> None:
+def test_login_for_access_token_negative(api_client: TestClient, async_test_user_sqlite: dict[str, Any]) -> None:
     """Performs negative test of user login API endpoint"""
     wrong_password = "wrongpassword"
     response = api_client.post(
@@ -255,23 +251,23 @@ def test_update_habit_returns_fresh_data(
         "description": description,
         "frequency": frequency,
     }
-    response_post = authenticated_as_user_api_client.post(url="/api/habits", json=json_content)
+    response_post = authenticated_as_user_api_client.post(url=f"{settings.API_V1_STR}/habits", json=json_content)
     assert response_post.status_code == 200
     habit_id = response_post.json()["id"]
 
-    response_get = authenticated_as_user_api_client.get("/api/habits")
+    response_get = authenticated_as_user_api_client.get(f"{settings.API_V1_STR}/habits")
     assert response_get.status_code == 200
     habits = response_get.json()
     assert any(h["id"] == habit_id and h["frequency"] == frequency for h in habits)
 
     new_frequency = "daily"
     response_patch = authenticated_as_user_api_client.patch(
-        url=f"/api/habits/{habit_id}",
+        url=f"{settings.API_V1_STR}/habits/{habit_id}",
         json={"frequency": new_frequency},
     )
     assert response_patch.status_code == 200
 
-    response_get_after = authenticated_as_user_api_client.get("/api/habits")
+    response_get_after = authenticated_as_user_api_client.get(f"{settings.API_V1_STR}/habits")
     assert response_get_after.status_code == 200
     habits_after = response_get_after.json()
 

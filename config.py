@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     # Application
     APP_NAME: str = "habit-tracker"
+    API_V1_STR: str = "/api/v1"
     SECRET_KEY: str = "test-secret-key-change-me-in-production"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
