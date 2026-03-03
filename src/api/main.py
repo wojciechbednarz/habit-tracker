@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from config import settings
+from src.api.middleware import LoggingMiddleware
 from src.api.v1.routers import admin, ai, habits, reports, security, users
 from src.core.cache import RedisManager
 from src.core.exception_handlers import register_exception_handlers
@@ -38,6 +39,7 @@ app.include_router(admin.router)
 app.include_router(security.router)
 app.include_router(ai.router)
 app.include_router(reports.router)
+app.add_middleware(LoggingMiddleware)
 register_exception_handlers(app)
 
 

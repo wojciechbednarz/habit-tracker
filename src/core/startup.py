@@ -1,7 +1,7 @@
 """Application startup utilities."""
 
 from config import settings
-from src.core.exceptions import UserNotFoundException
+from src.core.exceptions import DatabaseException, UserNotFoundException
 from src.core.habit_async import AsyncUserManager
 from src.core.models import UserBase, UserRole
 from src.core.schemas import UserUpdate
@@ -30,20 +30,24 @@ async def _promote_user_to_admin(user_manager: AsyncUserManager, admin_username:
 async def ensure_admin_exists(user_manager: AsyncUserManager) -> None:
     """Ensures at least one admin user exists"""
     logger.info("Checking for existing admin users...")
-    all_users = await user_manager.read_all_users()
-    has_admin = any(user.role == UserRole.ADMIN for user in all_users)
-    if not has_admin:
-        admin_username, admin_email, admin_password = _set_env_variables()
-        try:
-            existing_user = await user_manager.get_user_by_username(admin_username)
-            await _promote_user_to_admin(user_manager, admin_username, existing_user)
-        except UserNotFoundException:
-            new_user = await user_manager.create_user(
-                username=admin_username,
-                email=admin_email,
-                nickname="Administrator",
-                password=admin_password,
-            )
-            await _promote_user_to_admin(user_manager, admin_username, new_user)
-    else:
-        logger.info("Admin user already exists")
+    try:
+        all_users = await user_manager.read_all_users()
+        has_admin = any(user.role == UserRole.ADMIN for user in all_users)
+        if not has_admin:
+            admin_username, admin_email, admin_password = _set_env_variables()
+            try:
+                existing_user = await user_manager.get_user_by_username(admin_username)
+                await _promote_user_to_admin(user_manager, admin_username, existing_user)
+            except UserNotFoundException:
+                new_user = await user_manager.create_user(
+                    username=admin_username,
+                    email=admin_email,
+                    nickname="Administrator",
+                    password=admin_password,
+                )
+                await _promote_user_to_admin(user_manager, admin_username, new_user)
+        else:
+            logger.info("Admin user already exists")
+    except DatabaseException as err:
+        logger.error(f"Database error while ensuring admin user exists: {err}")
+        raise RuntimeError("Failed to ensure admin user exists due to database error") from err

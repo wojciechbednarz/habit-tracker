@@ -206,7 +206,7 @@ class TokenData(BaseModel):
 class UserInDB(User):
     """Pydantic class describing user in database"""
 
-    hashed_password: str
+    hashed_password: str | None = None
     role: str
 
 

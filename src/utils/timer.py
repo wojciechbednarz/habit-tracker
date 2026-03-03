@@ -105,11 +105,39 @@ class Timer:
             logger.warning("Timer exited without being started.")
 
 
-def timer(func: Callable[..., Any]) -> Any:
-    """
-    Shortcut decorator to use the Timer class. Usage: @timer.
+# def timer(func: Callable[..., Any]) -> Any:
+#     """
+#     Shortcut decorator to use the Timer class. Usage: @timer.
 
-    :func: The function to be wrapped by the timer
-    :return: The result of the wrapped function
-    """
-    return Timer(func=func)
+#     :func: The function to be wrapped by the timer
+#     :return: The result of the wrapped function
+#     """
+#     return Timer(func=func)
+
+
+def timer(func: Callable[..., Any]) -> Any:
+    """Function-based decorator that preserves signature for FastAPI."""
+    if inspect.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            """Async wrapper function"""
+            start_time = time.perf_counter()
+            try:
+                return await func(*args, **kwargs)
+            finally:
+                end_time = time.perf_counter()
+                logger.info(f"{func.__name__} took {end_time - start_time}s")
+
+        return async_wrapper
+    else:
+
+        @wraps(func)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            """Sync wrapper function"""
+            start_time = time.perf_counter()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                end_time = time.perf_counter()
+                logger.info(f"{func.__name__} took {end_time - start_time:.4f}s")

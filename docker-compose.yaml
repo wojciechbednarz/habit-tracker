@@ -68,6 +68,7 @@ services:
       - ./pyproject.toml:/app/pyproject.toml
       - ./alembic.ini:/app/alembic.ini
       - ./config.py:/app/config.py
+      - ./logs:/app/logs
     profiles:
       - full
 

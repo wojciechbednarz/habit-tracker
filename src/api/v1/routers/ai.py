@@ -19,11 +19,11 @@ from src.api.v1.routers.dependencies import (
 from src.core.ai_service import AIService
 from src.core.cache import RedisManager
 from src.core.habit_async import AsyncHabitManager
-from src.core.schemas import HabitAdvice, HabitResponse, User
+from src.core.schemas import HabitResponse, User
 from src.infrastructure.ai.ai_client import OllamaClient
 from src.utils.decorators import cache_result, timer
 
-router = APIRouter(prefix=f"{settings.API_V1_STR}/ai", tags=["habits"])
+router = APIRouter(prefix=f"{settings.API_V1_STR}/ai", tags=["ai", "habits"])
 
 
 @router.get("/advice")
@@ -34,12 +34,21 @@ async def get_ai_advice(
     ai_service: Annotated[AIService, Depends(get_ai_service)],
     ollama_client: Annotated[OllamaClient, Depends(get_ollama_client)],
     redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
-) -> HabitAdvice:
+) -> dict[str, Any]:
+    """
+    Gets general AI-generated coaching advice for the current user.
+
+    :current_user: The currently authenticated user for whom to fetch AI advice
+    :ai_service: The AI service dependency to generate user context and fetch advice
+    :ollama_client: The Ollama client dependency to fetch AI-generated advice
+    :redis_cache: The Redis manager dependency for caching results
+    :return: A HabitAdvice object containing the AI-generated coaching advice
+    """
     user_context = await ai_service.get_user_context(current_user.user_id)
     general_advice = await ollama_client.get_general_coaching(user_context)
     if not general_advice:
         raise HTTPException(status_code=503, detail="AI service unavailable")
-    return general_advice
+    return general_advice.model_dump()
 
 
 @router.get("/at-risk")
@@ -67,6 +76,6 @@ async def get_at_risk_habits_ai_coach(
         advice = await ollama_client.get_habit_advice(
             habit_name=str(habit.name), streak=habit_analytics["streak"], days_missed=habit_analytics["days_missed"]
         )
-        return {"habit": habit.model_dump(), "ai_coach": advice}
+        return {"habit": habit.model_dump(mode="json"), "ai_coach": advice.model_dump(mode="json") if advice else None}
 
     return await asyncio.gather(*[get_habit_data(h) for h in at_risk_habits])

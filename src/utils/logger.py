@@ -2,11 +2,29 @@
 
 import logging
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
+import structlog
 
-def setup_logger(name: str = "", level: int | str = logging.INFO) -> logging.Logger:
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
+
+
+def setup_logger(name: str = "", level: int | str = logging.INFO) -> structlog.stdlib.BoundLogger:
     """
     Set up a consistent logger across all modules
     Args:
@@ -15,31 +33,27 @@ def setup_logger(name: str = "", level: int | str = logging.INFO) -> logging.Log
     Returns:
         Configured logger instance
     """
-    logger = logging.getLogger(name or __name__)
+    stdlib_logger = logging.getLogger(name or __name__)
+    if not stdlib_logger.handlers:
+        stdlib_logger.propagate = False
+        stdlib_logger.setLevel(level if isinstance(level, int) else getattr(logging, level.upper()))
+        json_formatter = structlog.stdlib.ProcessorFormatter(
+            processor=structlog.processors.JSONRenderer(),
+        )
 
-    if logger.handlers:
-        return logger
-    if isinstance(level, str):
-        logger.setLevel(getattr(logging, level.upper()))
-    else:
-        logger.setLevel(level)
-    formatter = logging.Formatter(
-        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+        console_formatter = structlog.stdlib.ProcessorFormatter(processor=structlog.dev.ConsoleRenderer(colors=True))
 
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(logging.DEBUG)
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(console_formatter)
+        stdlib_logger.addHandler(console_handler)
 
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
+        log_dir = Path("logs")
+        log_dir.mkdir(exist_ok=True)
+        file_path = log_dir / f"app_{datetime.now(tz=UTC).strftime('%Y%m%d')}.log"
 
-    file_handler = logging.FileHandler(log_dir / f"app_{datetime.now().strftime('%Y%m%d')}.log")
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.INFO)
+        file_handler = logging.FileHandler(file_path)
+        file_handler.setFormatter(json_formatter)
 
-    logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
+        stdlib_logger.addHandler(file_handler)
 
-    return logger
+    return structlog.wrap_logger(stdlib_logger)

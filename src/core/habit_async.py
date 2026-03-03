@@ -3,7 +3,7 @@ with API endpoints.
 """
 
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -355,7 +355,8 @@ class AsyncHabitService:
             last_date = habit.created_at
         else:
             last_date = days_completed[0].completed_at
-        diff = datetime.now() - last_date
+        logger.info(f"NOW: {datetime.now()}, LAST COMPLETED DATE: {last_date}")
+        diff = datetime.now(UTC) - last_date
         return {"streak": streak, "days_missed": diff.days}
 
 
