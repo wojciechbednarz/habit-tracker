@@ -4,6 +4,7 @@ import logging
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import structlog
 
@@ -56,4 +57,4 @@ def setup_logger(name: str = "", level: int | str = logging.INFO) -> structlog.s
 
         stdlib_logger.addHandler(file_handler)
 
-    return structlog.wrap_logger(stdlib_logger)
+    return cast(structlog.stdlib.BoundLogger, structlog.wrap_logger(stdlib_logger))

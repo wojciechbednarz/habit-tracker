@@ -30,6 +30,7 @@ dependencies = [
     "python-multipart>=0.0.22",
     "cfn-lint>=1.45.0",
     "structlog>=25.5.0",
+    "aws-xray-sdk[asgi]>=2.15.0",
 ]
 
 [dependency-groups]

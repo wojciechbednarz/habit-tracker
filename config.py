@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     VERSION: str = "2.0"
+    STRICT_TRANSPORT_SECURITY_MAX_AGE_ONE_YEAR: str = "31536000"
 
     # Admin credentials (for initial setup)
     ADMIN_USERNAME: str = "admin"
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "test-secret-key-change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 10080
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
@@ -44,6 +46,7 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: str | None = None
     AWS_DYNAMODB_TABLE_NAME: str = "HabitTrackerData"
+    XRAY_ENABLED: bool = False
 
     # AI/LLM
     OLLAMA_URL: str = "http://localhost:11434"

@@ -194,7 +194,8 @@ class Token(BaseModel):
     """Pydantic class describing types of the token data"""
 
     access_token: str
-    token_type: str
+    refresh_token: str
+    token_type: str = "bearer"
 
 
 class TokenData(BaseModel):

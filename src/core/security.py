@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 import jwt
 from pwdlib import PasswordHash
@@ -11,14 +12,28 @@ from config import settings
 password_hash = PasswordHash.recommended()
 
 
-def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
-    """Returns encoded JSON Web Token"""
-    to_encode = data.copy()
+def _set_expire_delta(expires_delta: timedelta | None = None) -> datetime:
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
         expire = datetime.now(UTC) + timedelta(minutes=15)
+    return expire
+
+
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
+    """Returns encoded JSON Web Token"""
+    to_encode = data.copy()
+    expire = _set_expire_delta(expires_delta)
     to_encode.update({"exp": int(expire.timestamp())})
+    assert settings.JWT_SECRET_KEY is not None, "JWT_SECRETS_KEY must be set"
+    encoded_jwt: str = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return encoded_jwt
+
+
+def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
+    to_encode = data.copy()
+    expire = _set_expire_delta(expires_delta)
+    to_encode.update({"jti": str(uuid4()), "exp": int(expire.timestamp())})
     assert settings.JWT_SECRET_KEY is not None, "JWT_SECRETS_KEY must be set"
     encoded_jwt: str = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt

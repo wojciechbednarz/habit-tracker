@@ -3,7 +3,7 @@
 from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 
 from config import settings
@@ -24,6 +24,7 @@ from src.repository.user_repository import UserRepository
 from src.utils.logger import setup_logger
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+refresh_token_scheme = HTTPBearer(auto_error=False)
 
 logger = setup_logger(__name__)
 

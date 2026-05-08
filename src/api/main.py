@@ -4,10 +4,11 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from aws_xray_sdk.core import patch, xray_recorder
 from fastapi import FastAPI
 
 from config import settings
-from src.api.middleware import LoggingMiddleware
+from src.api.middleware import CustomXrayMiddleware, LoggingMiddleware, SecurityHeadersMiddleware
 from src.api.v1.routers import admin, ai, habits, reports, security, users
 from src.core.cache import RedisManager
 from src.core.exception_handlers import register_exception_handlers
@@ -27,6 +28,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
     cache = RedisManager()
     await cache.initialize(settings.REDIS_URL)
     app.state.redis_manager = cache
+    logger.info(f"XRAY_ENABLED: {settings.XRAY_ENABLED}")
+    if settings.XRAY_ENABLED:
+        xray_recorder.configure(
+            service="habit-tracker-api",
+            daemon_address="xray-daemon:2000",
+            context_missing="LOG_ERROR",
+        )
+        patch(["requests", "botocore"])
     yield
     await cache.close()
     logger.info("Redis connection closed")
@@ -39,6 +48,8 @@ app.include_router(admin.router)
 app.include_router(security.router)
 app.include_router(ai.router)
 app.include_router(reports.router)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CustomXrayMiddleware)
 app.add_middleware(LoggingMiddleware)
 register_exception_handlers(app)
 

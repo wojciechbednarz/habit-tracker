@@ -8,7 +8,9 @@ from typing import Any
 from uuid import UUID
 
 from src.core.db import AsyncDatabase
-from src.core.events.handlers import check_habit_consecutive_days
+from src.core.events.events import HabitUpdatedEvent
+from src.core.events.handlers import AuditLogHandler, check_habit_consecutive_days
+from src.core.events.publisher import HabitEventPublisher
 from src.core.exceptions import HabitNotFoundException, UserNotFoundException
 from src.core.habit import HabitFormatter
 from src.core.models import HabitBase, UserBase
@@ -195,11 +197,13 @@ class AsyncHabitService:
         self,
         user_repo: UserRepository,
         habit_repo: HabitRepository,
+        publisher: HabitEventPublisher,
         async_db: AsyncDatabase,
         ollama_client: OllamaClient | None = None,
     ) -> None:
         self.user_repo = user_repo
         self.habit_repo = habit_repo
+        self.publisher = publisher
         self.async_db = async_db
         self.async_session_maker = async_db.async_session_maker
         self.async_engine = async_db.async_engine
@@ -301,7 +305,20 @@ class AsyncHabitService:
         if not update_data:
             logger.warning("No fields to update.")
             return False
+
         update = await self.habit_repo.update(habit_id, update_data)
+
+        old = {field: getattr(habit, field) for field in update_data}
+        changed = {
+            field: (str(old[field]), str(update_data[field]))
+            for field in update_data
+            if old.get(field) != update_data[field]
+        }
+        if changed:
+            event = HabitUpdatedEvent(
+                habit_id=habit_id, user_id=habit.user_id, timestamp=datetime.now(UTC), updates=changed
+            )
+            self.publisher.publish(event)
         logger.info(f"Habit '{normalized_habit_name}' updated successfully")
         return update
 
@@ -379,9 +396,12 @@ class AsyncHabitManager:
         else:
             user_repo = UserRepository(self.async_db.async_session_maker)
             habit_repo = HabitRepository(self.async_db.async_session_maker, self.async_db.async_engine)
+            publisher = HabitEventPublisher()
+            publisher.register(AuditLogHandler())
             self.service = AsyncHabitService(
                 user_repo=user_repo,
                 habit_repo=habit_repo,
+                publisher=publisher,
                 async_db=self.async_db,
                 ollama_client=self.ollama_client,
             )

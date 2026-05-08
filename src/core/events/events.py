@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +9,7 @@ class BaseEvent(BaseModel):
 
     timestamp: datetime
     user_id: UUID
-    event_id: UUID
+    event_id: UUID = Field(default_factory=uuid4)
 
 
 class HabitCompletedEvent(BaseEvent):
@@ -29,3 +29,8 @@ class AchievementUnlockedEvent(BaseEvent):
     """
 
     achievement_type: str
+
+
+class HabitUpdatedEvent(BaseEvent):
+    updates: dict[str, tuple[str, str]]
+    habit_id: UUID

@@ -10,7 +10,7 @@ from typing import Any
 from uuid import uuid4
 
 from config import settings
-from src.core.events.events import AchievementUnlockedEvent, HabitCompletedEvent
+from src.core.events.events import AchievementUnlockedEvent, HabitCompletedEvent, HabitUpdatedEvent
 from src.core.models import HabitCompletion
 from src.infrastructure.aws.dynamodb_client import DynamoDBClient
 from src.infrastructure.aws.email_client import SESClient
@@ -176,3 +176,17 @@ async def send_notification(event: AchievementUnlockedEvent, context: Context) -
         recipient=typing.cast(str, user_data.email),
         sender=settings.AWS_SES_SENDER_EMAIL,
     )
+
+
+class AuditLogHandler:
+    """Handler for logging events to an audit log"""
+
+    def __init__(self) -> None:
+        """Initializes the AuditLogHandler with the specified event type."""
+        self.event_type = HabitUpdatedEvent
+
+    def handle(self, event: HabitUpdatedEvent) -> None:
+        """Handles the event by logging it to the audit log."""
+        logger.info(f"Audit Log - Event: {event.event_id}, User: {event.user_id}, Habit: {event.habit_id}. Updates:")
+        for habit_field, (old_value, new_value) in event.updates.items():
+            logger.info(f"{habit_field}: {old_value} -> {new_value}")
