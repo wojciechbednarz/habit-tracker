@@ -90,7 +90,7 @@ async def test_get_habit_advice_mocked(ollama_client: OllamaClient, mock_ai_mode
         assert advice.habit_name == habit_name
         assert advice.reasoning == "Keep going!"
         assert advice.advice_tip == "Try morning workouts."
-        assert advice.priority == "High"
+        assert advice.priority == 3
 
 
 @pytest.mark.unit
@@ -114,4 +114,4 @@ async def test_get_general_coaching_mocked(
         assert advice.habit_name == habit_name
         assert advice.reasoning == "Keep going!"
         assert advice.advice_tip == "Try morning workouts."
-        assert advice.priority == "High"
+        assert advice.priority == 3
