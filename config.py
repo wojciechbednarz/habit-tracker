@@ -45,11 +45,11 @@ class Settings(BaseSettings):
     AWS_SES_SENDER_EMAIL: str = "test@example.com"
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: str | None = None
-    AWS_DYNAMODB_TABLE_NAME: str = "HabitTrackerData"
     XRAY_ENABLED: bool = False
 
     # AI/LLM
     OLLAMA_URL: str = "http://localhost:11434"
+    OPENROUTER_CHAT_COMPLETIONS: str = "https://openrouter.ai/api/v1/chat/completions"
 
     @classmethod
     @field_validator("JWT_SECRET_KEY", mode="before")

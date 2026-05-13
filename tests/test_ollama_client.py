@@ -47,7 +47,7 @@ async def test_get_habit_advice(ollama_client: OllamaClient, habit_name: str, st
     assert advice.habit_name == habit_name
     assert advice.reasoning != ""
     assert advice.advice_tip != ""
-    assert isinstance(advice.priority, str)
+    assert isinstance(advice.priority, int)
 
 
 @pytest.mark.integration
@@ -66,7 +66,7 @@ async def test_get_general_coaching(ollama_client: OllamaClient, user_context: d
     assert advice.habit_name == user_context["habits"][0]["name"]
     assert advice.reasoning != ""
     assert advice.advice_tip != ""
-    assert isinstance(advice.priority, str)
+    assert isinstance(advice.priority, int)
 
 
 @pytest.mark.unit

@@ -67,6 +67,24 @@ Habit Tracker is a comprehensive habit management system designed for individual
 
 ## Architecture
 
+### Data-layer rationale — why two stores, split along access-pattern axes
+
+The data layer is split along **access-pattern axes**, not entity-type axes. Each entity has exactly one home, chosen by which store's primitives natively serve the dominant access pattern.
+
+**PostgreSQL** holds the relational habit domain — users, habits, completions, derived streaks — because three properties matter there:
+
+1. Username uniqueness enforced at the database layer via `UNIQUE` constraint, not application logic with race conditions.
+2. Statistics queries (`completion rate per habit per week`, `at-risk habits`) exploit SQL aggregations and joins that DynamoDB would force me to emulate via denormalization on every write.
+3. Foreign-key integrity between habits and completions is maintained by Postgres without application-level orchestration.
+
+**DynamoDB** is introduced in v2 (Week 11) for the AI Coach domain — chat history, coach state, prompt artifacts — where access patterns are stable and known upfront, writes are append-only and time-sortable (`PK: USER#<id>` / `SK: CONV#<conv_id>#MSG#<ts>`), and the single-digit-millisecond connectionless model native to Lambda fits the chat UX. Putting chat history in Postgres would force the relational connection pool through the hottest write path of the AI feature.
+
+**Redis** holds refresh-token JTIs (7-day TTL with reuse detection) — auth state is already Lambda-shaped, so it stays as-is.
+
+This is the canonical AWS *purpose-built databases* pattern. The senior signal is choosing along the right axis, not jamming everything into one store.
+
+### Layered structure
+
 The application follows a **layered hexagonal architecture** pattern with clear separation of concerns:
 
 ```
@@ -115,7 +133,7 @@ The application follows a **layered hexagonal architecture** pattern with clear 
 ### Database & ORM
 - **PostgreSQL 15+** - Primary relational database
 - **AWS DynamoDB** - NoSQL database for real-time analytics and leaderboard (like user achievements and points)
-  - See [DYNAMODB_DESIGN.md](./src/infrastructure/aws/DYNAMODB_DESIGN.md) for detailed Single-Table Design patterns.
+  - See [DYNAMODB_DESIGN.md](./docs/DYNAMODB_DESIGN.md) for detailed Single-Table Design patterns.
 - **SQLAlchemy 2.0.44+** - Async-capable ORM with type hints
 - **Alembic 1.17.2+** - Database versioning and migrations
 - **asyncpg** - Async PostgreSQL driver
@@ -546,7 +564,6 @@ habit-tracker/
 │   │   │   └── ollama_client.py # Ollama LLM client for habit coaching
 │   │   ├── aws/                   # AWS service integrations
 │   │   │   ├── aws_helper.py      # AWS session and stack management
-|   |   |   ├── dynamodb_client.py # AWS DynamoDB data storage
 │   │   │   ├── email_client.py    # AWS SES email delivery
 │   │   │   ├── queue_client.py    # AWS SQS job queue management
 │   │   │   ├── s3_client.py       # AWS S3 file storage

@@ -3,6 +3,7 @@ AWS helper functions for creating clients and
 fetching Cloud Formation stack information.
 """
 
+import os
 from typing import Any
 
 from aioboto3 import Session
@@ -47,20 +48,13 @@ class AWSSessionManager:
         :return: aioboto3 Session
         """
         logger.info(f"Creating aioboto3 session for environment: {environment}")
-        configs = {
-            "dev": {
-                "region_name": settings.AWS_REGION,
-                "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
-                "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
-            },
-            "prod": {
-                "region_name": settings.AWS_REGION,
-                "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
-                "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
-            },
-        }
-        config = configs.get(environment, configs["dev"])
-        return Session(**config)
+        if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+            return Session(region_name=self.region)
+        return Session(
+            region_name=self.region,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        )
 
 
 async def get_cloud_formation_stack(stack_name: str, session_manager: AWSSessionManager) -> Any:

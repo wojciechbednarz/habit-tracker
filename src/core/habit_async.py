@@ -9,13 +9,14 @@ from uuid import UUID
 
 from src.core.db import AsyncDatabase
 from src.core.events.events import HabitUpdatedEvent
-from src.core.events.handlers import AuditLogHandler, check_habit_consecutive_days
+from src.core.events.handlers import AuditLogHandler
 from src.core.events.publisher import HabitEventPublisher
 from src.core.exceptions import HabitNotFoundException, UserNotFoundException
 from src.core.habit import HabitFormatter
 from src.core.models import HabitBase, UserBase
 from src.core.schemas import HabitCreate, HabitResponse, HabitUpdate, UserUpdate
 from src.core.security import get_password_hash
+from src.core.streak_service import check_habit_consecutive_days
 from src.infrastructure.ai.ai_client import OllamaClient
 from src.repository.habit_repository import HabitRepository
 from src.repository.user_repository import UserRepository

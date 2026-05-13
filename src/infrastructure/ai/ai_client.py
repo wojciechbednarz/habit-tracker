@@ -72,7 +72,7 @@ class AIClient:
                 {"role": "user", "content": user_prompt},
             ],
             "stream": False,
-            "format": "json",
+            "format": HabitAdvice.model_json_schema(),
         }
 
     async def _get_habit_advice(self, system_prompt: str, user_prompt: str) -> HabitAdvice:
@@ -91,7 +91,7 @@ class AIClient:
 class OllamaClient(AIClient):
     """Ollama client for handling interactions with the Ollama API."""
 
-    def __init__(self, model: str = "llama3.1:latest"):
+    def __init__(self, model: str = "llama3.1:latest") -> None:
         self.model = model
         self.base_url = settings.OLLAMA_URL if settings.OLLAMA_URL else "http://localhost:11434"
         self.chat_url = f"{self.base_url}/api/chat"
@@ -110,7 +110,8 @@ class OllamaClient(AIClient):
             "You are a Senior Behavioral Coach. Provide a specific, actionable tip "
             "for a user who is struggling to maintain their habit streak. "
             "Return the response ONLY as a JSON object with keys: "
-            "'habit_name', 'reasoning', 'advice_tip', and 'priority'."
+            "'habit_name', 'reasoning', 'advice_tip', and 'priority'. "
+            "Priority as integer 1 (low), 2 (medium), 3 (high)."
         )
         user_prompt = (
             f"The user is struggling to maintain their habit: {habit_name}. "

@@ -39,6 +39,7 @@ from src.core.cache import RedisManager
 from src.core.db import AsyncDatabase, SyncDatabase
 from src.core.events.events import HabitCompletedEvent
 from src.core.events.handlers import Context
+from src.core.events.publisher import HabitEventPublisher
 from src.core.habit import HabitManager, UserManager
 from src.core.habit_async import (
     AsyncHabitManager,
@@ -614,6 +615,21 @@ async def mocked_user_repository() -> AsyncMock:
 
 
 @pytest_asyncio.fixture()
+async def mocked_habit_event_publisher() -> AsyncMock:
+    """Mocks the HabitEventPublisher class.
+    Unit testing purpose (service layer).
+    """
+    return AsyncMock(spec=HabitEventPublisher)
+
+
+@pytest_asyncio.fixture()
+async def mocked_ollama_client() -> AsyncMock:
+    """Mocks the OllamaClient class.
+    Unit testing purpose (service layer)."""
+    return AsyncMock(spec=OllamaClient)
+
+
+@pytest_asyncio.fixture()
 async def mocked_habit_repository() -> AsyncMock:
     """
     Mocks the HabitRepository class.
@@ -650,13 +666,18 @@ async def habit_repository_real_db(
 
 @pytest_asyncio.fixture
 async def mocked_habit_service(
-    mocked_habit_repository: AsyncMock, mocked_user_repository: AsyncMock
+    mocked_habit_repository: AsyncMock,
+    mocked_user_repository: AsyncMock,
+    mocked_habit_event_publisher: HabitEventPublisher,
+    mocked_ollama_client: OllamaClient,
 ) -> AsyncHabitService:
     """Create real AsyncHabitService with mocked repositories."""
     mock_db = AsyncMock(spec=AsyncDatabase)
     mock_db.async_session_maker = AsyncMock()
     mock_db.async_engine = AsyncMock()
-    return AsyncHabitService(mocked_user_repository, mocked_habit_repository, mock_db)
+    return AsyncHabitService(
+        mocked_user_repository, mocked_habit_repository, mocked_habit_event_publisher, mock_db, mocked_ollama_client
+    )
 
 
 @pytest_asyncio.fixture
@@ -693,7 +714,7 @@ async def mocked_user_manager(
 @pytest_asyncio.fixture
 async def mock_handler_context() -> "Context":
     r"""Mocks the context needed for handler methods from src\core\events\handlers.py"""
-    context = Context(user_repo=AsyncMock(), habit_repo=AsyncMock(), ses_client=AsyncMock(), dynamo_db=AsyncMock())
+    context = Context(user_repo=AsyncMock(), habit_repo=AsyncMock(), ses_client=AsyncMock())
     return context
 
 

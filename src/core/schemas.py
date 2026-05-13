@@ -217,4 +217,28 @@ class HabitAdvice(BaseModel):
     habit_name: str
     reasoning: str
     advice_tip: str
-    priority: str
+    priority: int
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _coerce_priority(cls, v: object) -> int:
+        """Coerce LLM priority output to int 1-3.
+
+        Why: Ollama returns inconsistent types ("High", "1", 1) despite prompt rules.
+        How to apply: maps low/medium/high (case-insensitive) and numeric strings to 1-3;
+        clamps out-of-range ints; falls back to 2 (medium) on anything unparseable.
+        """
+        if isinstance(v, bool):
+            return 2
+        if isinstance(v, int):
+            return max(1, min(3, v))
+        if isinstance(v, str):
+            mapping = {"low": 1, "medium": 2, "med": 2, "high": 3}
+            key = v.strip().lower()
+            if key in mapping:
+                return mapping[key]
+            try:
+                return max(1, min(3, int(key)))
+            except ValueError:
+                return 2
+        return 2

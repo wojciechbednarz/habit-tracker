@@ -9,8 +9,9 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from src.core.events.events import AchievementUnlockedEvent, HabitCompletedEvent
-from src.core.events.handlers import Context, award_points, check_habit_consecutive_days
+from src.core.events.handlers import Context
 from src.core.models import HabitCompletion
+from src.core.streak_service import check_habit_consecutive_days, compute_completion_points
 
 
 @pytest.mark.unit
@@ -72,29 +73,11 @@ async def test_check_streaks_triggers_achievement(mock_handler_context: Context,
         assert args[0].achievement_type == "1 Week Streak"
 
 
-@pytest.mark.asyncio
 @pytest.mark.unit
-async def test_award_points_multipliers(mock_handler_context: Context, habit_completed_event_factory) -> None:
-    """Verify correct point multipliers are applied in award_points"""
-    # Base points
-    event = habit_completed_event_factory(streak_count=1)
-    await award_points(event, mock_handler_context)
-    mock_handler_context.dynamo_db.update_points.assert_called_with(event.user_id, 10)
-
-    # 7-day multiplier (2.0x)
-    event = habit_completed_event_factory(streak_count=7)
-    await award_points(event, mock_handler_context)
-    mock_handler_context.dynamo_db.update_points.assert_called_with(event.user_id, 20)
-
-    # 30-day multiplier (5.0x)
-    event = habit_completed_event_factory(streak_count=30)
-    await award_points(event, mock_handler_context)
-    mock_handler_context.dynamo_db.update_points.assert_called_with(event.user_id, 50)
-
-    # 100-day multiplier (10.0x)
-    event = habit_completed_event_factory(streak_count=100)
-    await award_points(event, mock_handler_context)
-    mock_handler_context.dynamo_db.update_points.assert_called_with(event.user_id, 100)
+@pytest.mark.parametrize("streak,expected", [(1, 10), (7, 20), (30, 50), (100, 100)])
+def test_compute_completion_points(streak: int, expected: int) -> None:
+    """Verify correct point multipliers are applied across the streak tiers."""
+    assert compute_completion_points(streak) == expected
 
 
 @given(st.builds(HabitCompletedEvent))

@@ -53,16 +53,12 @@ The **GSI_Leaderboard** is an "index" that looks at your table from a different 
 2.  **DynamoDB Action:** Performs an `UpdateItem` on `SK=STREAK#{habit_id}` to increment the streak.
 3.  **Logic:** If the new streak hits a milestone (e.g., 7 days), it dispatches an `AchievementUnlockedEvent`.
 
-### Step 3: Handler - `award_points`
-1.  Receives `HabitCompletedEvent`.
-2.  **Logic:** Calculates points based on the streak (e.g., Base 10 + Multiplier).
-3.  **DynamoDB Action:** Performs an `UpdateItem` on `SK=METADATA` to increment `total_points`.
-    *   *This update automatically triggers the GSI update for the Leaderboard.*
-
-### Step 4: Handler - `send_notification`
+### Step 3: Handler - `send_notification`
 1.  Receives `AchievementUnlockedEvent`.
 2.  **Email Action:** Sends the congratulation email via SES.
 3.  **DynamoDB Action (New):** Adds a new item with `SK=ACHIEVEMENT#{type}` so it appears in the user's history.
+
+> Note: an earlier draft proposed a separate `award_points` handler that wrote `total_points` to `SK=METADATA` (with a Leaderboard GSI). That handler was removed — points are now a pure derived value computed on demand by `src/core/streak_service.compute_completion_points()`, not persisted.
 
 ---
 
