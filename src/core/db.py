@@ -1,5 +1,6 @@
 """Database interaction module."""
 
+import functools
 from typing import Any, cast
 from uuid import UUID, uuid4
 
@@ -26,10 +27,14 @@ logger = setup_logger(__name__)
 __all__ = ["AsyncDatabase", "SyncDatabase", "HabitDatabase", "HabitBase", "UserBase"]
 
 
+@functools.lru_cache(maxsize=1)
 def get_async_engine() -> AsyncEngine:
     """
     Creates and returns asynchronous database engine.
 
+    Memoized at module scope so Lambda warm invocations reuse the same
+    engine + pool across requests. Tests must call .cache_clear() in
+    setup/teardown to avoid leaking state between test cases.
     :return: Asynchronous database engine
     """
     return create_async_engine(DATABASE_ASYNC_URL, echo=False)
