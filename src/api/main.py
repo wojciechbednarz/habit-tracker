@@ -13,7 +13,6 @@ from src.api.v1.routers import admin, ai, habits, reports, security, users
 from src.core.cache import RedisManager
 from src.core.exception_handlers import register_exception_handlers
 from src.core.habit_async import AsyncUserManager
-from src.core.startup import ensure_admin_exists
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -23,7 +22,6 @@ logger = setup_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
     """Run on application startup."""
     user_manager = AsyncUserManager()
-    await ensure_admin_exists(user_manager)
     await user_manager.service.async_db.async_engine.dispose()
     cache = RedisManager()
     await cache.initialize(settings.REDIS_URL)

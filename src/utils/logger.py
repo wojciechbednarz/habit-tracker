@@ -1,6 +1,7 @@
 """Utility module for setting up a consistent logger across all modules."""
 
 import logging
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,16 +46,18 @@ def setup_logger(name: str = "", level: int | str = logging.INFO) -> structlog.s
         console_formatter = structlog.stdlib.ProcessorFormatter(processor=structlog.dev.ConsoleRenderer(colors=True))
 
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(console_formatter)
+        if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+            console_handler.setFormatter(json_formatter)
+        else:
+            console_handler.setFormatter(console_formatter)
+            log_dir = Path("logs")
+            log_dir.mkdir(exist_ok=True)
+            file_path = log_dir / f"app_{datetime.now(tz=UTC).strftime('%Y%m%d')}.log"
+
+            file_handler = logging.FileHandler(file_path)
+            file_handler.setFormatter(json_formatter)
+
+            stdlib_logger.addHandler(file_handler)
         stdlib_logger.addHandler(console_handler)
-
-        log_dir = Path("logs")
-        log_dir.mkdir(exist_ok=True)
-        file_path = log_dir / f"app_{datetime.now(tz=UTC).strftime('%Y%m%d')}.log"
-
-        file_handler = logging.FileHandler(file_path)
-        file_handler.setFormatter(json_formatter)
-
-        stdlib_logger.addHandler(file_handler)
 
     return cast(structlog.stdlib.BoundLogger, structlog.wrap_logger(stdlib_logger))

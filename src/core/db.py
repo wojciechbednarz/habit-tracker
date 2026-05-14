@@ -1,5 +1,6 @@
 """Database interaction module."""
 
+from functools import cache
 from typing import Any, cast
 from uuid import UUID, uuid4
 
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from config import settings
 from src.core.models import Base, HabitBase, UserBase
@@ -26,13 +28,14 @@ logger = setup_logger(__name__)
 __all__ = ["AsyncDatabase", "SyncDatabase", "HabitDatabase", "HabitBase", "UserBase"]
 
 
+@cache
 def get_async_engine() -> AsyncEngine:
     """
     Creates and returns asynchronous database engine.
 
     :return: Asynchronous database engine
     """
-    return create_async_engine(DATABASE_ASYNC_URL, echo=False)
+    return create_async_engine(DATABASE_ASYNC_URL, echo=False, poolclass=NullPool)
 
 
 def get_session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
@@ -48,8 +51,8 @@ def get_session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 class AsyncDatabase:
     """Asynchronous database interaction class."""
 
-    def __init__(self, db_url: str = DATABASE_ASYNC_URL):
-        self.async_engine = create_async_engine(db_url, echo=False)
+    def __init__(self, db_url: str = DATABASE_ASYNC_URL, engine: AsyncEngine | None = None):
+        self.async_engine = engine or get_async_engine()
         self.async_session_maker = async_sessionmaker(self.async_engine, expire_on_commit=False)
         self.db_url = db_url
 

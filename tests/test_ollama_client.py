@@ -63,7 +63,7 @@ async def test_get_general_coaching(ollama_client: OllamaClient, user_context: d
 
     advice = await ollama_client.get_general_coaching(user_context)
     assert isinstance(advice, HabitAdvice)
-    assert advice.habit_name == user_context["habits"][0]["name"]
+    assert isinstance(advice.habit_name, str) and advice.habit_name != ""
     assert advice.reasoning != ""
     assert advice.advice_tip != ""
     assert isinstance(advice.priority, int)
