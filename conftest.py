@@ -61,6 +61,16 @@ def pytest_configure(config: Any) -> None:
     config.addinivalue_line("markers", "integration: Integration tests with real DB")
 
 
+INTEGRATION_FIXTURES = {"postgres_container", "redis_container", "postgres_db_objects", "redis_instance"}
+
+
+def pytest_collection_modifyitems(config: Any, items: Any) -> None:
+    """Pytest hook to modify collected test items based on markers and fixture usage"""
+    for item in items:
+        if INTEGRATION_FIXTURES & set(getattr(item, "fixturenames", ())):
+            item.add_marker(pytest.mark.integration)
+
+
 # ==================== SHARED FIXTURES ====================
 
 
