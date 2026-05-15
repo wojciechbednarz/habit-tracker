@@ -82,7 +82,12 @@ class AsyncDatabase:
     """Asynchronous database interaction class."""
 
     def __init__(self, db_url: str = DATABASE_ASYNC_URL, engine: AsyncEngine | None = None):
-        self.async_engine = engine or get_async_engine()
+        if engine is not None:
+            self.async_engine = engine
+        elif db_url != DATABASE_ASYNC_URL:
+            self.async_engine = create_async_engine(db_url, echo=False, poolclass=NullPool)
+        else:
+            self.async_engine = get_async_engine()  # cached prod engine path
         self.async_session_maker = async_sessionmaker(self.async_engine, expire_on_commit=False)
         self.db_url = db_url
 
