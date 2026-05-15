@@ -6,11 +6,13 @@ from typing import Any
 
 from aws_xray_sdk.core import patch, xray_recorder
 from fastapi import FastAPI
+from sqlalchemy import text
 
 from config import settings
 from src.api.middleware import CustomXrayMiddleware, LoggingMiddleware, SecurityHeadersMiddleware
 from src.api.v1.routers import admin, ai, habits, reports, security, users
 from src.core.cache import RedisManager
+from src.core.db import get_async_engine
 from src.core.exception_handlers import register_exception_handlers
 from src.core.habit_async import AsyncUserManager
 from src.utils.logger import setup_logger
@@ -63,10 +65,16 @@ def root() -> dict[str, str]:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+async def health() -> dict[str, str]:
     """Health check endpoint"""
-    db_url: str = str(settings.DATABASE_URL)
-    return {
-        "status": "healthy",
-        "database": db_url.split("@")[1] if "@" in db_url else "Unknown",
-    }
+    try:
+        engine = get_async_engine()
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "ok"}
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": "error",
+            "error_class": type(e).__name__,
+        }

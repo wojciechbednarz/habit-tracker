@@ -1,10 +1,12 @@
 """Database interaction module."""
 
+import os
+import ssl
 from functools import cache
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -30,12 +32,32 @@ __all__ = ["AsyncDatabase", "SyncDatabase", "HabitDatabase", "HabitBase", "UserB
 
 @cache
 def get_async_engine() -> AsyncEngine:
-    """
-    Creates and returns asynchronous database engine.
+    use_iam = bool(os.getenv("DB_HOST")) and "amazonaws.com" in DATABASE_ASYNC_URL
+    connect_args: dict[str, Any] = {}
+    if use_iam:
+        connect_args["ssl"] = ssl.create_default_context()
 
-    :return: Asynchronous database engine
-    """
-    return create_async_engine(DATABASE_ASYNC_URL, echo=False, poolclass=NullPool)
+    engine = create_async_engine(
+        DATABASE_ASYNC_URL,
+        echo=False,
+        poolclass=NullPool,
+        connect_args=connect_args,
+    )
+
+    if use_iam:
+        import boto3
+
+        _rds = boto3.client("rds")
+
+        @event.listens_for(engine.sync_engine, "do_connect")
+        def _inject_iam_token(dialect: Any, conn_rec: Any, cargs: Any, cparams: dict[str, Any]) -> None:
+            cparams["password"] = _rds.generate_db_auth_token(
+                DBHostname=os.environ["DB_HOST"],
+                Port=int(os.environ["DB_PORT"]),
+                DBUsername=os.environ["DB_USER"],
+            )
+
+    return engine
 
 
 def get_session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

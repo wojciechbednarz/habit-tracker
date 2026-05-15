@@ -3,29 +3,135 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   habit-tracker
 
-  Sample SAM Template for habit-tracker
+  SAM template - public RDS + IAM DB auth (cost-optimized dev deploy).
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
     Timeout: 30
-
     Tracing: Active
   Api:
     TracingEnabled: true
+
 Resources:
+  # --- VPC + public subnets (RDS needs subnet group; Lambda runs outside VPC) ---
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+
+  SubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  SubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: habit-tracker RDS public subnets
+      SubnetIds: [!Ref SubnetA, !Ref SubnetB]
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Public RDS access (TLS enforced, IAM auth)
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+          Description: Public 5432; TLS forced via parameter group; auth via IAM tokens
+
+  # --- TLS-only parameter group ---
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: habit-tracker postgres16 - force SSL
+      Family: postgres16
+      Parameters:
+        rds.force_ssl: "1"
+
+  # --- RDS: public, IAM auth, encrypted, TLS-only ---
+  HabitDB:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBName: habittracker
+      Engine: postgres
+      EngineVersion: "16.14"
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: "20"
+      StorageType: gp3
+      MasterUsername: habitadmin
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups: [!Ref DBSecurityGroup]
+      DBParameterGroupName: !Ref DBParameterGroup
+      PubliclyAccessible: true
+      StorageEncrypted: true
+      EnableIAMDatabaseAuthentication: true
+      BackupRetentionPeriod: 7
+
+  # --- Lambda: no VpcConfig; public RDS endpoint + public AWS APIs ---
   HabitTrackerFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Type: AWS::Serverless::Function
     Properties:
       MemorySize: 512
       CodeUri: .
       Handler: src.infrastructure.aws.lambda_entry.lambda_handler
       Runtime: python3.13
-      Architectures:
-      - x86_64
+      Architectures: [x86_64]
       Events:
         HabitTracker:
-          Type: HttpApi # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Type: HttpApi
           Properties:
             Path: /{proxy+}
             Method: ANY
@@ -34,19 +140,32 @@ Resources:
           Properties:
             Path: /
             Method: ANY
-
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt HabitDB.Endpoint.Address
+          DB_PORT: !Sub "${HabitDB.Endpoint.Port}"
+          DB_NAME: habittracker
+          DB_USER: app_user
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: rds-db:connect
+              Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${HabitDB.DbiResourceId}/app_user"
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: API Gateway endpoint URL for Prod stage for Habit Tracker
-      function
+  HabitTrackerApi:
+    Description: API Gateway endpoint URL for Habit Tracker function
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
   HabitTrackerFunction:
     Description: Habit Tracker Lambda Function ARN
     Value: !GetAtt HabitTrackerFunction.Arn
   HabitTrackerFunctionIamRole:
-    Description: Implicit IAM Role created for Habit Tracker function
+    Description: Implicit IAM Role for Habit Tracker function
     Value: !GetAtt HabitTrackerFunctionRole.Arn
+  DBEndpoint:
+    Description: RDS public endpoint
+    Value: !GetAtt HabitDB.Endpoint.Address
+  DBMasterSecretArn:
+    Description: Master user secret ARN (for one-time bootstrap psql to GRANT rds_iam)
+    Value: !GetAtt HabitDB.MasterUserSecret.SecretArn
