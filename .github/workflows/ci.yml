@@ -90,7 +90,7 @@ jobs:
                 labels: ${{ steps.meta.outputs.labels }}
 
             - name: Run Trivy vulnerability scanner
-              uses: aquasecurity/trivy-action@0.36
+              uses: aquasecurity/trivy-action@v0.36.0
               with:
                 image-ref: ${{ steps.meta.outputs.tags }}
                 format: 'table'
@@ -105,6 +105,6 @@ jobs:
               with:
                 context: .
                 file: ./Dockerfile
-                push: true
+                push: false
                 tags: ${{ steps.meta.outputs.tags }}
                 labels: ${{ steps.meta.outputs.labels }}

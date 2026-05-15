@@ -1,10 +1,12 @@
 """Database interaction module."""
 
-import functools
+import os
+import ssl
+from functools import cache
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from config import settings
 from src.core.models import Base, HabitBase, UserBase
@@ -27,17 +30,42 @@ logger = setup_logger(__name__)
 __all__ = ["AsyncDatabase", "SyncDatabase", "HabitDatabase", "HabitBase", "UserBase"]
 
 
-@functools.lru_cache(maxsize=1)
+@cache
 def get_async_engine() -> AsyncEngine:
     """
-    Creates and returns asynchronous database engine.
+    Returns memoized async engine.
 
-    Memoized at module scope so Lambda warm invocations reuse the same
-    engine + pool across requests. Tests must call .cache_clear() in
-    setup/teardown to avoid leaking state between test cases.
-    :return: Asynchronous database engine
+    Memoized at module scope so Lambda warm invocations reuse the same engine.
+    NullPool used so each invocation gets a fresh connection — required because
+    IAM auth tokens expire after 15 min and pooled connections would go stale.
+    Tests must call .cache_clear() in setup/teardown.
     """
-    return create_async_engine(DATABASE_ASYNC_URL, echo=False)
+    use_iam = bool(os.getenv("DB_HOST")) and "amazonaws.com" in DATABASE_ASYNC_URL
+    connect_args: dict[str, Any] = {}
+    if use_iam:
+        connect_args["ssl"] = ssl.create_default_context()
+
+    engine = create_async_engine(
+        DATABASE_ASYNC_URL,
+        echo=False,
+        poolclass=NullPool,
+        connect_args=connect_args,
+    )
+
+    if use_iam:
+        import boto3
+
+        _rds = boto3.client("rds")
+
+        @event.listens_for(engine.sync_engine, "do_connect")
+        def _inject_iam_token(dialect: Any, conn_rec: Any, cargs: Any, cparams: dict[str, Any]) -> None:
+            cparams["password"] = _rds.generate_db_auth_token(
+                DBHostname=os.environ["DB_HOST"],
+                Port=int(os.environ["DB_PORT"]),
+                DBUsername=os.environ["DB_USER"],
+            )
+
+    return engine
 
 
 def get_session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
@@ -53,8 +81,13 @@ def get_session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 class AsyncDatabase:
     """Asynchronous database interaction class."""
 
-    def __init__(self, db_url: str = DATABASE_ASYNC_URL):
-        self.async_engine = create_async_engine(db_url, echo=False)
+    def __init__(self, db_url: str = DATABASE_ASYNC_URL, engine: AsyncEngine | None = None):
+        if engine is not None:
+            self.async_engine = engine
+        elif db_url != DATABASE_ASYNC_URL:
+            self.async_engine = create_async_engine(db_url, echo=False, poolclass=NullPool)
+        else:
+            self.async_engine = get_async_engine()  # cached prod engine path
         self.async_session_maker = async_sessionmaker(self.async_engine, expire_on_commit=False)
         self.db_url = db_url
 

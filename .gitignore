@@ -148,3 +148,12 @@ habit_storage.json
 habits.db
 *.lock
 .pdf
+
+# AWS SAM
+.aws-sam/
+samconfig.toml.local
+packaged-template.yaml
+
+# Stray shell-redirect artifacts
+passes
+strips

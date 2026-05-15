@@ -1,0 +1,15 @@
+archive/
+logs/
+.venv/
+__pycache__/
+*.pyc
+tests/
+docs/
+.git/
+.github/
+htmlcov/
+.aws-sam/
+notes/
+*.md
+.env
+.env.*
