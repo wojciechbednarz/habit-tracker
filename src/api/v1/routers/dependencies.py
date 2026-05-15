@@ -148,7 +148,8 @@ async def get_user_repository() -> UserRepository:
 
 async def get_habit_repository() -> HabitRepository:
     """Returns an instance of HabitRepository for dependency injection."""
-    return HabitRepository(get_session_maker(get_async_engine()), get_async_engine())
+    engine = get_async_engine()
+    return HabitRepository(get_session_maker(engine), engine)
 
 
 async def get_events_context(

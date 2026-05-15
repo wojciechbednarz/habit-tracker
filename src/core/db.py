@@ -32,6 +32,14 @@ __all__ = ["AsyncDatabase", "SyncDatabase", "HabitDatabase", "HabitBase", "UserB
 
 @cache
 def get_async_engine() -> AsyncEngine:
+    """
+    Returns memoized async engine.
+
+    Memoized at module scope so Lambda warm invocations reuse the same engine.
+    NullPool used so each invocation gets a fresh connection — required because
+    IAM auth tokens expire after 15 min and pooled connections would go stale.
+    Tests must call .cache_clear() in setup/teardown.
+    """
     use_iam = bool(os.getenv("DB_HOST")) and "amazonaws.com" in DATABASE_ASYNC_URL
     connect_args: dict[str, Any] = {}
     if use_iam:

@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
             daemon_address="xray-daemon:2000",
             context_missing="LOG_ERROR",
         )
-        patch(["requests", "botocore"])
+        patch(["requests", "asyncpg"])
     yield
     await cache.close()
     logger.info("Redis connection closed")

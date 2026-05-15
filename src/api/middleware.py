@@ -66,34 +66,36 @@ class CustomXrayMiddleware:
 
         request = Request(scope)
         method = request.method
-        segment = xray_recorder.begin_segment(
+        subsegment = xray_recorder.begin_subsegment(
             name=f"{method} {path}",
-            sampling=1,
         )
-
-        segment.put_http_meta("url", str(request.url))
-        segment.put_http_meta("method", method)
+        if subsegment:
+            subsegment.put_http_meta("url", str(request.url))
+            subsegment.put_http_meta("method", method)
 
         async def send_wrapper(message: MutableMapping[str, Any]) -> None:
             """"""
             if message["type"] == "http.response.start":
                 status = message.get("status", 200)
-                segment.put_http_meta("status", status)
+                if subsegment:
+                    subsegment.put_http_meta("status", status)
                 headers = list(message.get("headers", []))
-                headers.append(
-                    (b"x-amzn-trace-id", f"Root={segment.trace_id}".encode()),
-                )
+                if subsegment:
+                    headers.append(
+                        (b"x-amzn-trace-id", f"Root={subsegment.trace_id}".encode()),
+                    )
                 message["headers"] = headers
             await send(message)
 
         try:
             await self.app(scope, receive, send_wrapper)
         except Exception as err:
-            segment.add_exception(err, getattr(err, "__traceback__", None))
+            if subsegment:
+                subsegment.add_exception(err, getattr(err, "__traceback__", None))
             logger.exception("Error processing request in X-Ray middleware", error=str(err))
             raise
         finally:
-            xray_recorder.end_segment()
+            xray_recorder.end_subsegment()
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
