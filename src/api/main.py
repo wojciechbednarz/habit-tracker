@@ -10,7 +10,7 @@ from sqlalchemy import text
 
 from config import settings
 from src.api.middleware import CustomXrayMiddleware, LoggingMiddleware, SecurityHeadersMiddleware
-from src.api.v1.routers import admin, ai, habits, reports, security, users
+from src.api.v1.routers import admin, coach, habit_advice, habits, reports, security, users
 from src.core.cache import RedisManager
 from src.core.db import get_async_engine
 from src.core.exception_handlers import register_exception_handlers
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
             daemon_address="xray-daemon:2000",
             context_missing="LOG_ERROR",
         )
-        patch(["requests", "asyncpg"])
+        patch(["requests"])
     yield
     await cache.close()
     logger.info("Redis connection closed")
@@ -46,8 +46,9 @@ app.include_router(habits.router)
 app.include_router(users.router)
 app.include_router(admin.router)
 app.include_router(security.router)
-app.include_router(ai.router)
+app.include_router(habit_advice.router)
 app.include_router(reports.router)
+app.include_router(coach.router)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(CustomXrayMiddleware)
 app.add_middleware(LoggingMiddleware)

@@ -1,4 +1,4 @@
-"""Unit test for AIService modules using property-based testing"""
+"""Unit test for HabitContextService modules using property-based testing"""
 
 from collections.abc import Callable
 
@@ -6,7 +6,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from src.core.ai_service import AIService
+from src.core.ai_service import HabitContextService
 from src.core.models import HabitBase, UserBase
 
 
@@ -17,13 +17,13 @@ from src.core.models import HabitBase, UserBase
 )
 @pytest.mark.asyncio
 async def test_get_user_context_pb(
-    ai_service_factory: Callable[[], AIService], user_entity: UserBase, habits: list[HabitBase]
+    ai_service_factory: Callable[[], HabitContextService], user_entity: UserBase, habits: list[HabitBase]
 ) -> None:
     """
     Test get_user_context with property-based testing to ensure it
     handles various user IDs correctly.
 
-    :ai_service: The AIService instance to test.
+    :ai_service: The HabitContextService instance to test.
     :user_id: A randomly generated UUID to use as the user ID for testing.
     :return: None
     """

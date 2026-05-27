@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import overload
+from typing import Literal, overload
 from uuid import UUID
 
 from pydantic import (
@@ -242,3 +242,30 @@ class HabitAdvice(BaseModel):
             except ValueError:
                 return 2
         return 2
+
+
+class CoachRequest(BaseModel):
+    """User message to habit coach."""
+
+    message: str = Field(..., min_length=1, max_length=2000, description="User question or update")
+    conversation_id: UUID | None = Field(None, description="Continue thread if set, else new conversation")
+
+
+class CoachReply(BaseModel):
+    """LLM-structured coach output. Field order matters: reasoning -> intent -> reply."""
+
+    reasoning: str = Field(..., description="Why coach chose this reply (chain-of-thought)")
+    intent: Literal["encourage", "advice", "question", "unknown"] = Field(
+        ..., description="Coach act category; 'unknown' if unclear"
+    )
+    reply: str = Field(..., min_length=1, max_length=1000, description="User-facing message")
+    next_action: Literal["await_user", "suggest_habit", "log_completion", "none"] = Field(...)
+
+
+class CoachResponse(BaseModel):
+    """API envelope: LLM output + server telemetry."""
+
+    reply: CoachReply
+    conversation_id: UUID
+    tokens_used: int
+    latency_ms: int

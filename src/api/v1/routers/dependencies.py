@@ -7,7 +7,7 @@ from fastapi.security import HTTPBearer, OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 
 from config import settings
-from src.core.ai_service import AIService
+from src.core.ai_service import HabitContextService
 from src.core.db import get_async_engine, get_session_maker
 from src.core.events.handlers import Context
 from src.core.habit_async import AsyncHabitManager, AsyncUserManager
@@ -172,6 +172,6 @@ async def get_ollama_client() -> OllamaClient:
     return OllamaClient()
 
 
-async def get_ai_service() -> AIService:
-    """Returns an instance of AIService for dependency injection."""
-    return AIService(habit_repo=await get_habit_repository(), user_repo=await get_user_repository())
+async def get_ai_service() -> HabitContextService:
+    """Returns an instance of HabitContextService for dependency injection."""
+    return HabitContextService(habit_repo=await get_habit_repository(), user_repo=await get_user_repository())

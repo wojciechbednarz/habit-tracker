@@ -1,4 +1,4 @@
-"""Unit test for AIService modules using property-based testing"""
+"""Unit test for HabitContextService modules using property-based testing"""
 
 from uuid import UUID
 

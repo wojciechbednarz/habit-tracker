@@ -1,7 +1,7 @@
-"""AI-related endpoints for the Habit Tracker API. This module defines routes that
-interact with the AI service to provide insights and advice on user habits, such as
-identifying at-risk habits and generating personalized coaching advice based on
-user data and habit performance."""
+"""
+Habit-centric AI advice (Ollama-backed, stateless, cached).
+For conversational chat see coach.py.
+"""
 
 import asyncio
 from typing import Annotated, Any
@@ -16,14 +16,14 @@ from src.api.v1.routers.dependencies import (
     get_ollama_client,
     get_redis_manager,
 )
-from src.core.ai_service import AIService
+from src.core.ai_service import HabitContextService
 from src.core.cache import RedisManager
 from src.core.habit_async import AsyncHabitManager
 from src.core.schemas import HabitResponse, User
 from src.infrastructure.ai.ai_client import OllamaClient
 from src.utils.decorators import cache_result, timer
 
-router = APIRouter(prefix=f"{settings.API_V1_STR}/ai", tags=["ai", "habits"])
+router = APIRouter(prefix=f"{settings.API_V1_STR}/habit-advice", tags=["habit-advice", "habits"])
 
 
 @router.get("/advice")
@@ -31,7 +31,7 @@ router = APIRouter(prefix=f"{settings.API_V1_STR}/ai", tags=["ai", "habits"])
 @cache_result(ttl=3600, prefix="ai_general_advice")
 async def get_ai_advice(
     current_user: Annotated[User, Depends(get_current_active_user)],
-    ai_service: Annotated[AIService, Depends(get_ai_service)],
+    ai_service: Annotated[HabitContextService, Depends(get_ai_service)],
     ollama_client: Annotated[OllamaClient, Depends(get_ollama_client)],
     redis_cache: Annotated[RedisManager, Depends(get_redis_manager)],
 ) -> dict[str, Any]:

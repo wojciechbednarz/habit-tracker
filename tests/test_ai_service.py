@@ -1,4 +1,4 @@
-"""Unit test for AIService modules"""
+"""Unit test for HabitContextService modules"""
 
 from datetime import datetime
 from unittest.mock import AsyncMock
@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pytest
 
-from src.core.ai_service import AIService
+from src.core.ai_service import HabitContextService
 from src.core.exceptions import DatabaseException
 from src.core.models import HabitBase, UserBase
 
@@ -44,7 +44,7 @@ from src.core.models import HabitBase, UserBase
 )
 @pytest.mark.asyncio
 async def test_get_user_context_user_and_habit_data_returned_correctly(
-    ai_service: AIService, habit_data: HabitBase, user_data: UserBase
+    ai_service: HabitContextService, habit_data: HabitBase, user_data: UserBase
 ) -> None:
     """Test that get_user_context returns the correct user and habit data."""
     ai_service.user_repo.get_by_id = AsyncMock(return_value=user_data)
@@ -58,7 +58,7 @@ async def test_get_user_context_user_and_habit_data_returned_correctly(
 
 
 @pytest.mark.asyncio
-async def test_get_user_context_exception_raised_by_repo(ai_service: AIService) -> None:
+async def test_get_user_context_exception_raised_by_repo(ai_service: HabitContextService) -> None:
     """Test that get_user_context propagates exceptions from the habit repository."""
     user_data = UserBase(
         user_id=UUID("00000000-0000-0000-0000-000000000001"),
