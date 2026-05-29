@@ -45,7 +45,9 @@ class Settings(BaseSettings):
     AWS_SES_SENDER_EMAIL: str = "test@example.com"
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: str | None = None
-    XRAY_ENABLED: bool = False
+    AWS_XRAY_ENABLED: bool = False
+    AWS_BEDROCK_LLM_MODEL_ID: str = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
+    AWS_BEDROCK_API_KEY: str | None = None
 
     # AI/LLM
     OLLAMA_URL: str = "http://localhost:11434"

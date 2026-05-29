@@ -161,3 +161,6 @@ strips
 # MD files
 aws-deploy-debrief-2026-05-15.md
 aws_impl_verification_log_12_05_26.md
+
+# Local mentor instructions (never commit)
+CLAUDE.md

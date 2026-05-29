@@ -15,6 +15,7 @@ from src.core.models import UserBase
 from src.core.schemas import TokenData, User, UserInDB, UserWithRole
 from src.core.security import decode_token, verify_password
 from src.infrastructure.ai.ai_client import OllamaClient
+from src.infrastructure.ai.ai_coach import AICoachService
 from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.infrastructure.aws.email_client import SESClient
 from src.infrastructure.aws.queue_client import SQSClient
@@ -175,3 +176,8 @@ async def get_ollama_client() -> OllamaClient:
 async def get_ai_service() -> HabitContextService:
     """Returns an instance of HabitContextService for dependency injection."""
     return HabitContextService(habit_repo=await get_habit_repository(), user_repo=await get_user_repository())
+
+
+async def get_ai_coach_service() -> AICoachService:
+    """Returns an instance of AICoachService for dependency injection"""
+    return AICoachService()

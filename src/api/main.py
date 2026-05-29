@@ -15,6 +15,7 @@ from src.core.cache import RedisManager
 from src.core.db import get_async_engine
 from src.core.exception_handlers import register_exception_handlers
 from src.core.habit_async import AsyncUserManager
+from src.infrastructure.ai.ai_coach import AICoachService
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -26,10 +27,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
     user_manager = AsyncUserManager()
     await user_manager.service.async_db.async_engine.dispose()
     cache = RedisManager()
+    ai_coach_service = AICoachService()
     await cache.initialize(settings.REDIS_URL)
     app.state.redis_manager = cache
-    logger.info(f"XRAY_ENABLED: {settings.XRAY_ENABLED}")
-    if settings.XRAY_ENABLED:
+    app.state.ai_coach_service = ai_coach_service
+    logger.info(f"AWS_XRAY_ENABLED: {settings.AWS_XRAY_ENABLED}")
+    if settings.AWS_XRAY_ENABLED:
         xray_recorder.configure(
             service="habit-tracker-api",
             daemon_address="xray-daemon:2000",
