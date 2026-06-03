@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Literal, overload
+from typing import Any, Literal, overload
 from uuid import UUID
 
 from pydantic import (
@@ -269,3 +269,37 @@ class CoachResponse(BaseModel):
     conversation_id: UUID
     tokens_used: int
     latency_ms: int
+
+
+class HabitRiskItem(BaseModel):
+    name: str
+    frequency: str
+    streak: int
+    days_missed: int
+
+
+class CoachContext(BaseModel):
+    """Grounding facts handed to the coach. Deterministic — computed, not LLM-deduced."""
+
+    at_risk: list[HabitRiskItem]
+
+    @classmethod
+    def from_at_risk(
+        cls,
+        habits: list[HabitResponse],
+        analytics_by_id: dict[UUID, dict[str, Any]],
+    ) -> "CoachContext":
+        items = []
+        for habit in habits:
+            a = analytics_by_id.get(habit.id)
+            if a is None:
+                continue
+            items.append(
+                HabitRiskItem(
+                    name=habit.name,
+                    frequency=habit.frequency,
+                    streak=a["streak"],
+                    days_missed=a["days_missed"],
+                )
+            )
+        return cls(at_risk=items)

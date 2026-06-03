@@ -1,14 +1,22 @@
-import asyncio
+import time
+from dataclasses import dataclass
 from typing import Any
 
 from aioboto3.session import Session
 from types_aiobotocore_bedrock.client import BedrockClient
 
 from config import settings
-from src.core.schemas import CoachReply
+from src.core.schemas import CoachContext, CoachReply
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+@dataclass
+class CoachResult:
+    reply: CoachReply
+    tokens_used: int
+    latency_ms: int
 
 
 class AICoachService:
@@ -37,7 +45,7 @@ class AICoachService:
             await self.client.__aexit__(exc_type, exc, tb)
             self.client = None
 
-    async def converse(self, user_message: str, user_habit_context: str) -> CoachReply:
+    async def converse(self, user_message: str, user_habit_context: CoachContext) -> CoachResult:
         """
         LLM query to trigger coaching advice based on habit context
         user_message: Message provided by the user
@@ -55,7 +63,7 @@ class AICoachService:
                 f"feedback based on the user habit context: {user_habit_context}"
             }
         ]
-
+        start = time.perf_counter()
         response = await self.client.converse(
             modelId=self.model,
             messages=conversation,
@@ -77,6 +85,8 @@ class AICoachService:
                 "toolChoice": {"tool": {"name": "coach_reply"}},
             },
         )
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        tokens_used = response["usage"]["totalTokens"]
         content = response["output"]["message"]["content"]
         for elem in content:
             if "toolUse" in elem:
@@ -84,15 +94,4 @@ class AICoachService:
         if coach_reply is None:
             raise RuntimeError(f"expected tool call, got stopReason={response['stopReason']}")
         logger.info(f"LLM response text: {coach_reply}")
-        return coach_reply
-
-
-async def main() -> None:
-    async with AICoachService() as coach:
-        await coach.converse(
-            user_message="Im struggling with my habits, can you help me?", user_habit_context="Some context"
-        )
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        return CoachResult(reply=coach_reply, tokens_used=tokens_used, latency_ms=latency_ms)
