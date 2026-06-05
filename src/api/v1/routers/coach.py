@@ -6,7 +6,8 @@ import asyncio
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends
+from botocore.exceptions import ClientError
+from fastapi import APIRouter, Depends, HTTPException
 
 from config import settings
 from src.api.v1.routers.dependencies import get_ai_coach_service, get_current_active_user, get_habit_manager
@@ -32,8 +33,14 @@ async def chat(
 
     analytics_by_id = {h.id: a for h, a in zip(at_risk, analytics, strict=True)}
     context = CoachContext.from_at_risk(at_risk, analytics_by_id)
-    async with ai_coach as coach:
-        result = await coach.converse(request.message, context)
+    try:
+        async with ai_coach as coach:
+            result = await coach.converse(request.message, context)
+    except ClientError as e:
+        code = e.response["Error"]["Code"]
+        if code in ("ThrottlingException", "TooManyRequestsException"):
+            raise HTTPException(429, "coach busy, retry shortly") from e
+        raise HTTPException(503, "coach unavailable") from e
     return CoachResponse(
         reply=result.reply,
         conversation_id=request.conversation_id or uuid4(),
