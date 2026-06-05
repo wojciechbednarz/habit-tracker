@@ -30,6 +30,7 @@ dependencies = [
     "structlog>=25.5.0",
     "aws-xray-sdk[asgi]>=2.15.0",
     "mangum>=0.21.0",
+    "types-aiobotocore-bedrock>=3.7.0",
 ]
 
 [dependency-groups]

@@ -34,7 +34,7 @@ from src.api.v1.routers.dependencies import (
     get_user_manager,
     require_admin,
 )
-from src.core.ai_service import AIService
+from src.core.ai_service import HabitContextService
 from src.core.cache import RedisManager
 from src.core.db import AsyncDatabase, SyncDatabase
 from src.core.events.events import HabitCompletedEvent
@@ -746,18 +746,18 @@ async def habit_completed_event_factory() -> "Callable[[int], HabitCompletedEven
 
 
 @pytest_asyncio.fixture(scope="function")
-async def ai_service() -> AIService:
-    """Create an AIService instance with mocked repositories."""
-    return AIService(user_repo=AsyncMock(), habit_repo=AsyncMock())
+async def ai_service() -> HabitContextService:
+    """Create an HabitContextService instance with mocked repositories."""
+    return HabitContextService(user_repo=AsyncMock(), habit_repo=AsyncMock())
 
 
 @pytest_asyncio.fixture
-async def ai_service_factory() -> Callable[[], AIService]:
+async def ai_service_factory() -> Callable[[], HabitContextService]:
     """
-    Create an AIService instance with mocked repositories and return a factory for it.
+    Create an HabitContextService instance with mocked repositories and return a factory for it.
     """
 
-    def _ai_service_factory() -> AIService:
-        return AIService(user_repo=AsyncMock(), habit_repo=AsyncMock())
+    def _ai_service_factory() -> HabitContextService:
+        return HabitContextService(user_repo=AsyncMock(), habit_repo=AsyncMock())
 
     return _ai_service_factory

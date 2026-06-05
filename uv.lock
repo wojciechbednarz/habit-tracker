@@ -925,6 +925,7 @@ dependencies = [
     { name = "redis" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
+    { name = "types-aiobotocore-bedrock" },
     { name = "urllib3" },
     { name = "uvicorn" },
     { name = "weasyprint" },
@@ -972,6 +973,7 @@ requires-dist = [
     { name = "redis", specifier = ">=7.1.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.44" },
     { name = "structlog", specifier = ">=25.5.0" },
+    { name = "types-aiobotocore-bedrock", specifier = ">=3.7.0" },
     { name = "urllib3", specifier = ">=2.6.3" },
     { name = "uvicorn", specifier = ">=0.38.0" },
     { name = "weasyprint", specifier = ">=68.0" },
@@ -2235,6 +2237,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/fd/03/6111ed99e9bf7dfa1c30baeef0e0fb7e0bd387bd07f8e5b270776fe1de3f/tinyhtml5-2.0.0.tar.gz", hash = "sha256:086f998833da24c300c414d9fe81d9b368fd04cb9d2596a008421cbc705fcfcc", size = 179507, upload-time = "2024-10-29T15:37:14.078Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5c/de/27c57899297163a4a84104d5cec0af3b1ac5faf62f44667e506373c6b8ce/tinyhtml5-2.0.0-py3-none-any.whl", hash = "sha256:13683277c5b176d070f82d099d977194b7a1e26815b016114f581a74bbfbf47e", size = 39793, upload-time = "2024-10-29T15:37:11.743Z" },
+]
+
+[[package]]
+name = "types-aiobotocore-bedrock"
+version = "3.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/ac/258ad630310083369269983a5bcac1894a01429b93f4ecc8b7fcbd5b5deb/types_aiobotocore_bedrock-3.7.0.tar.gz", hash = "sha256:4fecf61969302b1f484d91f3621c0cf0e195631a62040bd16ff6b02596e6c317", size = 63974, upload-time = "2026-05-10T03:11:04.183Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/13/31/33ffe4fde310ff2458fa392f6d342df07ae925cb108451ee7932df05eed0/types_aiobotocore_bedrock-3.7.0-py3-none-any.whl", hash = "sha256:22d994d8561ff15ae451fda9ccd172dec555d72b1ece559feb09e387c3f998e1", size = 72210, upload-time = "2026-05-10T03:11:01.477Z" },
 ]
 
 [[package]]

@@ -14,7 +14,7 @@ from src.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-class AIService:
+class HabitContextService:
     """Service for fetching data for the AI model."""
 
     def __init__(self, user_repo: UserRepository, habit_repo: HabitRepository):
