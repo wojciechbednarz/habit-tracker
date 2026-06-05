@@ -48,6 +48,7 @@ def get_async_engine() -> AsyncEngine:
     engine = create_async_engine(
         DATABASE_ASYNC_URL,
         echo=False,
+        poolclass=NullPool,
         connect_args=connect_args,
     )
 
