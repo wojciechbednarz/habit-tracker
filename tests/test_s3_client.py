@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from botocore.exceptions import ClientError
 
 from src.core.models import HabitBase, HabitCompletion
 from src.infrastructure.aws.aws_helper import AWSSessionManager
@@ -81,3 +82,49 @@ async def test_generate_report_and_send_to_s3_bucket(
         mock_s3_client.delete_bucket.return_value = {}
         bucket_deleted = await s3_client.delete_bucket(bucket_name)
         assert bucket_deleted is True
+
+
+@pytest.mark.asyncio
+async def test_generate_presigned_url(s3_client_and_mock) -> None:
+    """
+    Tests the generation of a presigned URL for an S3 object.
+    """
+
+    s3_client, mock_s3_client = s3_client_and_mock
+
+    mock_s3_client.generate_presigned_url.return_value = "https://signed-url"
+
+    presigned_url = await s3_client.generate_presigned_url(
+        client_method="get_object", method_parameters={"Bucket": "test-bucket", "Key": "test-key"}, expires_in=3600
+    )
+    assert presigned_url == "https://signed-url"
+    mock_s3_client.generate_presigned_url.assert_awaited_once_with(
+        ClientMethod="get_object",
+        Params={"Bucket": "test-bucket", "Key": "test-key"},
+        ExpiresIn=3600,
+    )
+
+
+@pytest.mark.asyncio
+async def test_head_object_exists(s3_client_and_mock) -> None:
+    """Tests head_object method for an existing object in the S3 bucket."""
+    s3_client, mock_s3_client = s3_client_and_mock
+    mock_s3_client.head_object.return_value = {"ContentLength": 123, "ContentType": "application/pdf"}
+
+    result = await s3_client.head_object("test-bucket", "test-key")
+
+    assert result == {"ContentLength": 123, "ContentType": "application/pdf"}
+    mock_s3_client.head_object.assert_awaited_once_with(Bucket="test-bucket", Key="test-key")
+
+
+@pytest.mark.asyncio
+async def test_head_object_missing_returns_empty(s3_client_and_mock) -> None:
+    """Tests head_object method for a missing object in the S3 bucket."""
+    s3_client, mock_s3_client = s3_client_and_mock
+    test_bucket, test_key = "test-bucket", "test-key"
+    mock_s3_client.head_object.side_effect = ClientError({"Error": {"Code": "404"}}, "HeadObject")
+
+    result = await s3_client.head_object(test_bucket, test_key)
+
+    assert result == {}
+    mock_s3_client.head_object.assert_awaited_once_with(Bucket=test_bucket, Key=test_key)

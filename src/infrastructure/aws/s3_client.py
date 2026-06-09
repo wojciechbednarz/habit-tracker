@@ -10,7 +10,6 @@ from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-DEFAULT_PDF_S3_REPORT_KEY = "reports/weekly-report.pdf"
 
 
 class S3Client:
@@ -119,9 +118,7 @@ class S3Client:
             logger.error(f"Error encountered during getting an object: {e}")
             raise RuntimeError(f"Retrieving object {key} from S3 bucket {bucket_name} not successful") from e
 
-    async def upload_file_to_bucket(
-        self, bucket_name: str, buffer: BytesIO, key: str = DEFAULT_PDF_S3_REPORT_KEY
-    ) -> bool:
+    async def upload_file_to_bucket(self, bucket_name: str, buffer: BytesIO, key: str) -> bool:
         """
         Uploads a file to a bucket. Sets the stream posiiton to 0, to rewind to the
         start of the stream. (after writing to buffer stream position is at the end,
@@ -141,3 +138,49 @@ class S3Client:
         except ClientError as e:
             logger.error(f"Error encountered during uploading file to a bucket: {e}")
             return False
+
+    async def generate_presigned_url(
+        self, client_method: str, method_parameters: dict[str, Any], expires_in: int
+    ) -> Any:
+        """
+        Generates a presigned URL for the given S3 client method and parameters.
+        :client_method: The S3 client method for which to generate the presigned URL
+        (e.g., "get_object", "put_object")
+        :method_parameters: A dictionary of parameters to be passed to the S3 client method
+        (e.g., {"Bucket": ..., "Key": ...})
+        :expires_in: The time in seconds for which the presigned URL is valid
+        Example: await client.generate_presigned_url("get_object", Params={"Bucket": ..., "Key": ...},
+        ExpiresIn=300)
+        """
+        try:
+            logger.info(
+                f"Generating presigned URL for client method: {client_method} with parameters: "
+                f"{method_parameters} and expiration time: {expires_in} seconds"
+            )
+            async with self.session_manager.session.client("s3", region_name=self.session_manager.region) as client:
+                response = await client.generate_presigned_url(
+                    ClientMethod=client_method, Params=method_parameters, ExpiresIn=expires_in
+                )
+            logger.info(f"Got presigned URL: {response}")
+        except ClientError as e:
+            logger.error(f"Couldn't get a presigned URL for client method: {client_method}. Error: {e}")
+            raise
+        return response
+
+    async def head_object(self, bucket_name: str, key: str) -> dict[str, Any]:
+        """Checks if an object exists in the S3 bucket by sending a HEAD request"""
+        try:
+            logger.info(f"Checking if object exists in S3 bucket {bucket_name} using key: {key}")
+            async with self.session_manager.session.client("s3", region_name=self.session_manager.region) as client:
+                response = await client.head_object(
+                    Bucket=bucket_name,
+                    Key=key,
+                )
+            logger.info(f"Response: {response}")
+            return typing.cast(dict[str, Any], response)
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                logger.info(f"Object with key {key} not found in bucket {bucket_name}.")
+                return {}
+            logger.error(f"Error encountered during checking if object exists: {e}")
+            raise RuntimeError(f"Checking if object {key} exists in S3 bucket {bucket_name} not successful") from e
