@@ -19,6 +19,7 @@ from src.infrastructure.ai.ai_coach import AICoachService
 from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.infrastructure.aws.email_client import SESClient
 from src.infrastructure.aws.queue_client import SQSClient
+from src.infrastructure.aws.s3_client import S3Client
 from src.repository.habit_repository import HabitRepository
 from src.repository.user_repository import UserRepository
 from src.utils.logger import setup_logger
@@ -181,3 +182,10 @@ async def get_ai_service() -> HabitContextService:
 async def get_ai_coach_service() -> AICoachService:
     """Returns an instance of AICoachService for dependency injection"""
     return AICoachService()
+
+
+async def get_s3_client(
+    aws_session_manager: Annotated[AWSSessionManager, Depends(get_aws_session_manager)],
+) -> S3Client:
+    """Returns an instance of S3Client for dependency injection."""
+    return S3Client(aws_session_manager)

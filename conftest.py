@@ -31,6 +31,7 @@ from src.api.v1.routers.dependencies import (
     get_current_active_user,
     get_current_user_with_role,
     get_habit_manager,
+    get_s3_client,
     get_user_manager,
     require_admin,
 )
@@ -51,6 +52,8 @@ from src.core.models import Base, HabitBase, UserBase
 from src.core.schemas import User, UserUpdate, UserWithRole
 from src.core.security import get_password_hash
 from src.infrastructure.ai.ai_client import OllamaClient
+from src.infrastructure.aws.aws_helper import AWSSessionManager
+from src.infrastructure.aws.s3_client import S3Client
 from src.repository.habit_repository import HabitRepository
 from src.repository.user_repository import UserRepository
 
@@ -282,6 +285,12 @@ def mock_require_admin(
 
 
 @pytest.fixture()
+def mocked_s3_client() -> AsyncMock:
+    """Mocked S3 client fixture."""
+    return AsyncMock(spec=S3Client)
+
+
+@pytest.fixture()
 def authenticated_as_user_api_client(
     async_user_manager: AsyncUserManager,
     async_habit_manager: AsyncHabitManager,
@@ -387,15 +396,37 @@ def redis_container() -> Generator[RedisContainer]:
         yield redis
 
 
-# @pytest.fixture(scope="function")
-# def test_lifespan(redis_manager: RedisManager) -> Callable:
-#     """Factory that creates a test lifespan context manager."""
-#     @asynccontextmanager
-#     async def _test_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-#         """Test lifespan that uses test Redis."""
-#         app.state.redis_manager = redis_manager
-#         yield
-#     return _test_lifespan
+@pytest.fixture
+def s3_client_and_mock() -> tuple[S3Client, AsyncMock]:
+    mock_session = MagicMock()
+    mock_s3_client = AsyncMock()
+    context_manager = MagicMock()
+    context_manager.__aenter__.return_value = mock_s3_client
+    mock_session.client.return_value = context_manager
+
+    session_manager = MagicMock(spec=AWSSessionManager)
+    session_manager.session = mock_session
+    session_manager.region = "eu-central-1"
+
+    return S3Client(session_manager), mock_s3_client
+
+
+@pytest.fixture()
+def s3_report_api_client(
+    async_user_manager: AsyncUserManager,
+    async_habit_manager: AsyncHabitManager,
+    test_lifespan: Callable[[FastAPI], Any],
+    mock_get_current_active_user: Callable[..., Any],
+    mocked_s3_client: AsyncMock,
+) -> Generator[tuple[TestClient, AsyncMock]]:
+    app.router.lifespan_context = test_lifespan
+    app.dependency_overrides[get_user_manager] = lambda: async_user_manager
+    app.dependency_overrides[get_habit_manager] = lambda: async_habit_manager
+    app.dependency_overrides[get_current_active_user] = mock_get_current_active_user
+    app.dependency_overrides[get_s3_client] = lambda: mocked_s3_client
+    with TestClient(app) as client:
+        yield client, mocked_s3_client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture()

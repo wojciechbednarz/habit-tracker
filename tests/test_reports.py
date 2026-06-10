@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+from config import settings
 from src.core.models import HabitBase, HabitCompletion
 from src.infrastructure.pdf.reports_service import ReportService, WeeklyReport
 
@@ -92,3 +93,16 @@ def test_render_html_report(mocked_habit_repository: AsyncMock) -> None:
         assert habit.name in rendered_report
         assert str(habit.total) in rendered_report
         assert habit.status in rendered_report
+
+
+def test_get_report_download_url(s3_report_api_client, async_test_user_sqlite):
+    client, mock_s3 = s3_report_api_client
+    mock_s3.head_object.return_value = {"ContentLength": 1}
+    mock_s3.generate_presigned_url.return_value = "https://url"
+
+    resp = client.get("/api/v1/reports/4/download")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"url": "https://url"}
+    user_id = async_test_user_sqlite["user"].user_id
+    mock_s3.head_object.assert_awaited_once_with(settings.AWS_S3_BUCKET_NAME, f"reports/{user_id}/weekly_w4.pdf")
