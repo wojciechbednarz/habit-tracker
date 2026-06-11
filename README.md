@@ -221,13 +221,13 @@ cd habit-tracker
 # Using uv (recommended)
 uv python install 3.13
 uv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source .venv/bin/activate
-# On Windows:
-.venv\Scripts\activate
 ```
+
+> **No activation needed.** uv runs everything through `uv run <cmd>`
+> (e.g. `uv run pytest`, `uv run uvicorn ...`), which auto-discovers `.venv`.
+> If you specifically want shell activation scripts, create the venv with
+> `uv venv --seed`, then `source .venv/bin/activate` (macOS/Linux) or
+> `.venv\Scripts\activate` (Windows).
 
 #### 3. Install Dependencies
 ```bash
