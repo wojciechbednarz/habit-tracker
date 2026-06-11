@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from config import settings
 from src.core.db import get_async_engine, get_session_maker
 from src.infrastructure.aws.aws_helper import AWSSessionManager, get_sqs_queue_url
+from src.infrastructure.aws.cloudwatch_client import CloudWatchClient
 from src.infrastructure.aws.email_client import SESClient
 from src.infrastructure.aws.queue_client import SQSClient
 from src.infrastructure.aws.s3_client import S3Client
@@ -30,6 +31,7 @@ class AppContainer:
     sqs_client: SQSClient
     s3_client: S3Client
     ses_client: SESClient
+    cloudwatch_client: CloudWatchClient
     pdf_generator: PDFGenerator
     report_service: ReportService
     user_repo: UserRepository
@@ -41,6 +43,7 @@ class AppContainer:
         sqs_client = SQSClient(session_manager)
         s3_client = S3Client(session_manager)
         ses_client = SESClient(session_manager)
+        cloudwatch_client = CloudWatchClient(session_manager)
         pdf_generator = PDFGenerator()
         habit_repo = HabitRepository(get_session_maker(engine), engine)
         user_repo = UserRepository(get_session_maker(engine))
@@ -50,6 +53,7 @@ class AppContainer:
             sqs_queue_url=sqs_queue_url,
             s3_client=s3_client,
             ses_client=ses_client,
+            cloudwatch_client=cloudwatch_client,
             pdf_generator=pdf_generator,
             report_service=report_service,
             user_repo=user_repo,
@@ -127,8 +131,10 @@ async def process_message(
             receipt_handle=receipt_handle,
         )
         logger.info(f"Successfully processed report for user {user_id}")
+        await container.cloudwatch_client.put_metric("ReportsGenerated", 1)
     except Exception as e:
         logger.error(f"Failed to process message for user {user_id}: {e}", exc_info=True)
+        await container.cloudwatch_client.put_metric("ReportGenerationFailures", 1)
         raise
 
 

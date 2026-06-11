@@ -291,6 +291,18 @@ wheels = [
 ]
 
 [[package]]
+name = "aws-embedded-metrics"
+version = "3.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f2/d6/77cbcaffcf3f5537c9e83c8be41e744fef171c4e18aed82f24efded4f70c/aws_embedded_metrics-3.5.0.tar.gz", hash = "sha256:4b5f87d00dd7683fc7651a90f00055b460a1dbce3ffc2fc21698902c9d2e3bea", size = 27898, upload-time = "2026-03-27T05:32:44.759Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/55/50/d045407751719f9e9c2999c5331944717badcb6cef4c721293dbfebae994/aws_embedded_metrics-3.5.0-py3-none-any.whl", hash = "sha256:645dec8aa3478b1df22e7076e6294c260b8c9a147748fcf8484c81e38cb04602", size = 41717, upload-time = "2026-03-27T05:32:43.542Z" },
+]
+
+[[package]]
 name = "aws-sam-translator"
 version = "1.106.0"
 source = { registry = "https://pypi.org/simple" }
@@ -909,6 +921,7 @@ dependencies = [
     { name = "alembic" },
     { name = "argon2-cffi" },
     { name = "asyncpg" },
+    { name = "aws-embedded-metrics" },
     { name = "aws-xray-sdk" },
     { name = "click" },
     { name = "fastapi" },
@@ -957,6 +970,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "asyncpg", specifier = ">=0.31.0" },
+    { name = "aws-embedded-metrics", specifier = ">=3.5.0" },
     { name = "aws-xray-sdk", extras = ["asgi"], specifier = ">=2.15.0" },
     { name = "click", specifier = ">=8.3.0" },
     { name = "fastapi", specifier = ">=0.121.1" },

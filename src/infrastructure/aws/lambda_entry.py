@@ -17,4 +17,6 @@ from mangum import Mangum  # noqa: E402
 
 from src.api.main import app  # noqa: E402
 
-lambda_handler = Mangum(app=app, lifespan="off")
+
+def lambda_handler() -> Mangum:
+    return Mangum(app=app, lifespan="off")

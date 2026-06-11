@@ -75,7 +75,7 @@ class SESClient:
         :return: Response from SES send_raw_email API
         """
         logger.info("Sending email with attachment using SES")
-        logger.info(f"ATTACHMENT: {attachment}, TYPE: {type(attachment)}")
+        logger.info(f"ATTACHMENT: {attachment}")
         try:
             msg = self._build_email_message_object(
                 subject=subject,
