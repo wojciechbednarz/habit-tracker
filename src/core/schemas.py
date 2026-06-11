@@ -303,3 +303,15 @@ class CoachContext(BaseModel):
                 )
             )
         return cls(at_risk=items)
+
+
+class HabitCompletionRecord(BaseModel):
+    """Habit completion data fetched from database"""
+
+    habit_id: UUID = Field(..., description="Unique habit identifier")
+    name: str = Field(..., description="Habit name")
+    description: str = Field(..., description="Habit description")
+    frequency: str = Field(..., description="Habit frequency (daily/weekly/monthly)")
+    completed_at: datetime = Field(..., description="Habit completion timestamp")
+
+    model_config = ConfigDict(from_attributes=True)

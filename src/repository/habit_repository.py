@@ -15,6 +15,7 @@ from src.core.exceptions import (
     HabitNotFoundException,
 )
 from src.core.models import HabitBase, HabitCompletion
+from src.core.schemas import HabitCompletionRecord
 from src.repository.base import BaseRepository
 from src.utils.logger import setup_logger
 
@@ -48,7 +49,7 @@ class IHabitRepository(BaseRepository[HabitBase]):
     @abstractmethod
     async def get_completions_for_period(
         self, entity_id: UUID, *, start_date: datetime, end_date: datetime
-    ) -> list[HabitBase]:
+    ) -> list[HabitCompletionRecord]:
         """Gets all completed habit entities for a specific user with date range."""
         pass
 
@@ -223,7 +224,7 @@ class HabitRepository(IHabitRepository):
 
     async def get_completions_for_period(
         self, entity_id: UUID, *, start_date: datetime, end_date: datetime
-    ) -> list[HabitBase]:
+    ) -> list[HabitCompletionRecord]:
         """
         Gets all the completed habit entities from the database
         for a given date range using user ID.
@@ -247,13 +248,13 @@ class HabitRepository(IHabitRepository):
                     .order_by(HabitCompletion.completed_at)
                 )
                 result = await session.execute(query)
-                habits = list(result.scalars().all())
+                habits = list(result.all())
                 if habits:
                     logger.info(f"Fetched habits: {habits}")
                 else:
                     logger.warning(f"Habits for a user with provided ID {entity_id} not found.")
                     raise HabitNotFoundException(f"Habits for a user with ID {entity_id} not found")
-                return habits
+                return [HabitCompletionRecord.model_validate(habit, from_attributes=True) for habit in habits]
         except SQLAlchemyError as e:
             logger.error(f"Database error while fetching habits for a user with ID {entity_id}: {e}")
             raise DatabaseException(f"Failed to fetch habits by user ID {entity_id}: {str(e)}") from e
