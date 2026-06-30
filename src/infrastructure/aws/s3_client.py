@@ -118,6 +118,17 @@ class S3Client:
             logger.error(f"Error encountered during getting an object: {e}")
             raise RuntimeError(f"Retrieving object {key} from S3 bucket {bucket_name} not successful") from e
 
+    async def object_exists(self, bucket_name: str, key: str) -> bool:
+        try:
+            logger.info(f"Checking if key: {key} present in bucket {bucket_name}")
+            async with self.session_manager.session.client("s3", region_name=self.session_manager.region) as client:
+                await client.head_object(Bucket=bucket_name, Key=key)
+                return True
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                return False
+            raise
+
     async def upload_file_to_bucket(self, bucket_name: str, buffer: BytesIO, key: str) -> bool:
         """
         Uploads a file to a bucket. Sets the stream posiiton to 0, to rewind to the
