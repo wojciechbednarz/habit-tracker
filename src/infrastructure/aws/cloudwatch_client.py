@@ -43,3 +43,20 @@ class CloudWatchClient:
 
         except ClientError as e:
             logger.error(f"Error encountered during putting metric to CloudWatch: {e}")
+
+    async def retrieve_metric_alarms(self, alarm_names: list[str]) -> list[dict[str, str]]:
+        """
+        Retrieves the specified alarms from CloudWatch.
+        :alarm_names: List of alarm names to retrieve from CloudWatch
+        :return: List of dictionaries containing alarm details
+        """
+        try:
+            logger.debug("Retrieving alarms from CloudWatch")
+            async with self.session_manager.session.client("cloudwatch") as cw:
+                response = await cw.describe_alarms(AlarmNames=alarm_names)
+                alarms: list[dict[str, str]] = response.get("MetricAlarms", [])
+                return alarms
+
+        except ClientError as e:
+            logger.error(f"Error encountered during retrieving alarms from CloudWatch: {e}")
+            return []

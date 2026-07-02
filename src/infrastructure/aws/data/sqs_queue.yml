@@ -15,9 +15,23 @@ Resources:
         - Key: Environment
           Value: Dev
       VisibilityTimeout: 30
+  HabitReportAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Alarm for Habit Report Generation Failures
+      MetricName: ReportGenerationFailures
+      Namespace: HabitTracker
+      Statistic: Sum
+      EvaluationPeriods:  1
+      Period:  300
+      ComparisonOperator:  GreaterThanOrEqualToThreshold
+      Threshold: 1
+      TreatMissingData:  notBreaching
 
 Outputs:
   ReportQueueUrl:
     Value: !Ref HabitReportQueue
     Export:
       Name: !Sub "${AWS::StackName}-ReportQueueUrl"
+  HabitReportAlarmName:
+    Value: !Ref HabitReportAlarm
