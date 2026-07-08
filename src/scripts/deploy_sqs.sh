@@ -25,7 +25,7 @@ echo "--- Deploying SQS Stack: $STACK_NAME ---"
 
 # Step 1: Validate template (runs from repo root)
 echo "Validating template..."
-sam.cmd validate -t $TEMPLATE_FILE
+sam.cmd validate -t $TEMPLATE_FILE --lint
 
 if [ $? -ne 0 ]; then
     echo "Template validation failed!"

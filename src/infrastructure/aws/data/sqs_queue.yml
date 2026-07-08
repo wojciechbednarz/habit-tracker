@@ -14,7 +14,16 @@ Resources:
           Value: habit-tracker
         - Key: Environment
           Value: Dev
-      VisibilityTimeout: 30
+      VisibilityTimeout: 120
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt HabitReportDLQ.Arn
+        maxReceiveCount: 3
+  HabitReportDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: habit-reports-dlq
+      MessageRetentionPeriod: 1209600
+
   HabitReportAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
