@@ -117,7 +117,7 @@ ReportWorkerFunction:
           QueueName: !GetAtt HabitReportQueue.QueueName
       - S3CrudPolicy:
           BucketName: !Ref ReportsBucket
-      - SESEmailPolicy: ...
+      - SESCrudPolicy: ...
       - CloudWatchPutMetricPolicy: {}
 ```
 

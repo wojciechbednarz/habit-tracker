@@ -42,5 +42,13 @@ Outputs:
     Value: !Ref HabitReportQueue
     Export:
       Name: !Sub "${AWS::StackName}-ReportQueueUrl"
+  ReportQueueArn:
+    Value: !GetAtt HabitReportQueue.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ReportQueueArn"
+  ReportQueueName:
+    Value: !GetAtt HabitReportQueue.QueueName
+    Export:
+      Name: !Sub "${AWS::StackName}-ReportQueueName"
   HabitReportAlarmName:
     Value: !Ref HabitReportAlarm

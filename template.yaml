@@ -5,6 +5,17 @@ Description: >
 
   SAM template - public RDS + IAM DB auth (cost-optimized dev deploy).
 
+Parameters:
+  InfraStackName:
+    Type: String
+    Default: sqs-habit-tracker-stack
+  ReportsBucket:
+    Type: String
+    Default: habit-tracker-reports
+  SESSenderEmail:
+    Type: String
+    Default: bednarz.wojciech96@gmail.com
+
 Globals:
   Function:
     Timeout: 30
@@ -121,7 +132,7 @@ Resources:
       BackupRetentionPeriod: 7
 
   # --- Lambda: no VpcConfig; public RDS endpoint + public AWS APIs ---
-  HabitTrackerFunction:
+  HabitTrackerFunctionAPI:
     Type: AWS::Serverless::Function
     Properties:
       MemorySize: 512
@@ -147,22 +158,67 @@ Resources:
           DB_NAME: habittracker
           DB_USER: app_user
       Policies:
-        - Version: '2012-10-17'
-          Statement:
-            - Effect: Allow
-              Action: rds-db:connect
-              Resource: !Sub "arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${HabitDB.DbiResourceId}/app_user"
+      - Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: rds-db:connect
+            Resource:
+              Fn::Sub: arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${HabitDB.DbiResourceId}/app_user
+      - SQSSendMessagePolicy:
+          QueueName:  !ImportValue
+          "Fn::Sub": "${InfraStackName}-ReportQueueName"
 
+  HabitTrackerFunctionSQSEventsOnly:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 20
+      MemorySize: 512
+      CodeUri: .
+      Handler: src.infrastructure.aws.lambda_sqs_worker.handler
+      Runtime: python3.13
+      Architectures: [x86_64]
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue:
+              Fn::ImportValue:
+                Fn::Sub: "${InfraStackName}-ReportQueueArn"
+            BatchSize: 1
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt HabitDB.Endpoint.Address
+          DB_PORT: !Sub "${HabitDB.Endpoint.Port}"
+          DB_NAME: habittracker
+          DB_USER: app_user
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: rds-db:connect
+            Resource:
+              Fn::Sub: arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${HabitDB.DbiResourceId}/app_user
+      - SQSPollerPolicy:
+          QueueName:  !ImportValue
+          "Fn::Sub": "${InfraStackName}-ReportQueueName"
+      - S3WritePolicy:
+          BucketName: !Ref ReportsBucket
+      - SESCrudPolicy:
+          IdentityName: !Ref SESSenderEmail
+      - CloudWatchPutMetricPolicy: {}
+      - CloudFormationDescribeStacksPolicy: {}
 Outputs:
   HabitTrackerApi:
     Description: API Gateway endpoint URL for Habit Tracker function
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
-  HabitTrackerFunction:
+  HabitTrackerFunctionAPI:
     Description: Habit Tracker Lambda Function ARN
-    Value: !GetAtt HabitTrackerFunction.Arn
+    Value: !GetAtt HabitTrackerFunctionAPI.Arn
   HabitTrackerFunctionIamRole:
     Description: Implicit IAM Role for Habit Tracker function
-    Value: !GetAtt HabitTrackerFunctionRole.Arn
+    Value: !GetAtt HabitTrackerFunctionAPIRole.Arn
   DBEndpoint:
     Description: RDS public endpoint
     Value: !GetAtt HabitDB.Endpoint.Address
