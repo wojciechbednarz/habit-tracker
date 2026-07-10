@@ -40,9 +40,9 @@ class Settings(BaseSettings):
 
     # AWS
     AWS_REGION: str = "eu-central-1"
-    AWS_SQS_STACK_NAME: str = "test-stack"
-    AWS_S3_BUCKET_NAME: str = "test-bucket"
-    AWS_SES_SENDER_EMAIL: str = "test@example.com"
+    AWS_SQS_STACK_NAME: str
+    AWS_S3_BUCKET_NAME: str
+    AWS_SES_SENDER_EMAIL: str
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: str | None = None
     AWS_XRAY_ENABLED: bool = False

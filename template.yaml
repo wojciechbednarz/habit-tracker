@@ -157,6 +157,8 @@ Resources:
           DB_PORT: !Sub "${HabitDB.Endpoint.Port}"
           DB_NAME: habittracker
           DB_USER: app_user
+          AWS_S3_BUCKET_NAME: !Ref ReportsBucket
+          AWS_SQS_STACK_NAME: !Ref InfraStackName
       Policies:
       - Version: '2012-10-17'
         Statement:
@@ -165,8 +167,13 @@ Resources:
             Resource:
               Fn::Sub: arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${HabitDB.DbiResourceId}/app_user
       - SQSSendMessagePolicy:
-          QueueName:  !ImportValue
-          "Fn::Sub": "${InfraStackName}-ReportQueueName"
+          QueueName:
+            Fn::ImportValue:
+              Fn::Sub: "${InfraStackName}-ReportQueueName"
+      - S3ReadPolicy:
+          BucketName: !Ref ReportsBucket
+      - CloudFormationDescribeStacksPolicy: {}
+
 
   HabitTrackerFunctionSQSEventsOnly:
     Type: AWS::Serverless::Function
@@ -193,6 +200,9 @@ Resources:
           DB_PORT: !Sub "${HabitDB.Endpoint.Port}"
           DB_NAME: habittracker
           DB_USER: app_user
+          AWS_SQS_STACK_NAME: !Ref InfraStackName
+          AWS_S3_BUCKET_NAME: !Ref ReportsBucket
+          AWS_SES_SENDER_EMAIL: !Ref SESSenderEmail
       Policies:
       - Version: '2012-10-17'
         Statement:
@@ -201,8 +211,9 @@ Resources:
             Resource:
               Fn::Sub: arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${HabitDB.DbiResourceId}/app_user
       - SQSPollerPolicy:
-          QueueName:  !ImportValue
-          "Fn::Sub": "${InfraStackName}-ReportQueueName"
+          QueueName:
+            Fn::ImportValue:
+              Fn::Sub: "${InfraStackName}-ReportQueueName"
       - S3WritePolicy:
           BucketName: !Ref ReportsBucket
       - SESCrudPolicy:
