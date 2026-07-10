@@ -5,7 +5,7 @@ from uuid import UUID
 
 from config import settings
 from src.core.db import get_async_engine
-from src.infrastructure.aws.aws_helper import AWSSessionManager, get_sqs_queue_url
+from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.infrastructure.aws.worker import AppContainer
 from src.utils.logger import setup_logger
 
@@ -40,8 +40,7 @@ async def _process_event(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     engine = get_async_engine()
     session_manager = AWSSessionManager(environment="dev", region=settings.AWS_REGION)
-    sqs_queue_url = await get_sqs_queue_url(session_manager)
-    app_container = AppContainer.create(engine, sqs_queue_url, session_manager)
+    app_container = AppContainer.create(engine, settings.AWS_SQS_QUEUE_URL, session_manager)
 
     failures = []
     records = event.get("Records", [])

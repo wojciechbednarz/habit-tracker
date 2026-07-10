@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from config import settings
 from src.core.db import get_async_engine, get_session_maker
-from src.infrastructure.aws.aws_helper import AWSSessionManager, get_sqs_queue_url
+from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.infrastructure.aws.cloudwatch_client import CloudWatchClient
 from src.infrastructure.aws.email_client import SESClient
 from src.infrastructure.aws.queue_client import SQSClient
@@ -140,8 +140,7 @@ async def main() -> None:
     """Main worker function to poll SQS, process messages, and send emails."""
     engine = get_async_engine()
     session_manager = AWSSessionManager(environment="dev", region=settings.AWS_REGION)
-    sqs_queue_url = await get_sqs_queue_url(session_manager)
-    container = AppContainer.create(engine, sqs_queue_url, session_manager)
+    container = AppContainer.create(engine, settings.AWS_SQS_QUEUE_URL, session_manager)
     logger.info("Starting SQS worker...")
     try:
         while True:

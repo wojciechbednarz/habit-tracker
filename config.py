@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     # AWS
     AWS_REGION: str = "eu-central-1"
-    AWS_SQS_STACK_NAME: str
+    AWS_SQS_QUEUE_URL: str
     AWS_S3_BUCKET_NAME: str
     AWS_SES_SENDER_EMAIL: str
     AWS_ACCESS_KEY_ID: str | None = None

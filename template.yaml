@@ -158,7 +158,10 @@ Resources:
           DB_NAME: habittracker
           DB_USER: app_user
           AWS_S3_BUCKET_NAME: !Ref ReportsBucket
-          AWS_SQS_STACK_NAME: !Ref InfraStackName
+          AWS_SES_SENDER_EMAIL: !Ref SESSenderEmail
+          AWS_SQS_QUEUE_URL:  
+            Fn::ImportValue: 
+              Fn::Sub: "${InfraStackName}-ReportQueueUrl"
       Policies:
       - Version: '2012-10-17'
         Statement:
@@ -172,7 +175,6 @@ Resources:
               Fn::Sub: "${InfraStackName}-ReportQueueName"
       - S3ReadPolicy:
           BucketName: !Ref ReportsBucket
-      - CloudFormationDescribeStacksPolicy: {}
 
 
   HabitTrackerFunctionSQSEventsOnly:
@@ -200,9 +202,11 @@ Resources:
           DB_PORT: !Sub "${HabitDB.Endpoint.Port}"
           DB_NAME: habittracker
           DB_USER: app_user
-          AWS_SQS_STACK_NAME: !Ref InfraStackName
           AWS_S3_BUCKET_NAME: !Ref ReportsBucket
           AWS_SES_SENDER_EMAIL: !Ref SESSenderEmail
+          AWS_SQS_QUEUE_URL:  
+            Fn::ImportValue: 
+              Fn::Sub: "${InfraStackName}-ReportQueueUrl"
       Policies:
       - Version: '2012-10-17'
         Statement:
@@ -219,7 +223,6 @@ Resources:
       - SESCrudPolicy:
           IdentityName: !Ref SESSenderEmail
       - CloudWatchPutMetricPolicy: {}
-      - CloudFormationDescribeStacksPolicy: {}
 Outputs:
   HabitTrackerApi:
     Description: API Gateway endpoint URL for Habit Tracker function

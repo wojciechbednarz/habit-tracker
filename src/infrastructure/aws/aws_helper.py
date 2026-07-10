@@ -79,7 +79,7 @@ async def get_cloud_formation_stack(stack_name: str, session_manager: AWSSession
 
 async def get_sqs_queue_url(
     session_manager: AWSSessionManager,
-    sqs_stack_name: str = settings.AWS_SQS_STACK_NAME,
+    sqs_stack_name: str,
 ) -> Any:
     """
     Fetches the SQS queue URL from the Cloud Formation stack outputs.
@@ -95,10 +95,3 @@ async def get_sqs_queue_url(
             logger.debug(f"Found SQS queue URL: {output['OutputValue']}")
             return output["OutputValue"]
     return ""
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    result = asyncio.run(get_sqs_queue_url(session_manager=AWSSessionManager("dev", settings.AWS_REGION)))
-    print(f"SQS Queue URL: {result}")

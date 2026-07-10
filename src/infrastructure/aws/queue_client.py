@@ -2,6 +2,7 @@
 AWS SDK SQS client for handling SQS queue operations.
 """
 
+from config import settings
 import json
 import typing
 from datetime import UTC, datetime
@@ -10,7 +11,7 @@ from uuid import UUID
 
 from botocore.exceptions import ClientError
 
-from src.infrastructure.aws.aws_helper import AWSSessionManager, get_sqs_queue_url
+from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -35,8 +36,7 @@ class SQSClient:
         :user_id: ID of the user for whom the report generation is triggered
         :return: None
         """
-        url = await get_sqs_queue_url(self.session_manager)
-        await self.send_message(user_id, url)
+        await self.send_message(user_id, settings.AWS_SQS_QUEUE_URL)
 
     async def send_message(self, user_id: UUID, queue_url: str) -> dict[str, Any]:
         """

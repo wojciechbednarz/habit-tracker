@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import argparse
 
 from config import settings
 from src.infrastructure.aws.aws_helper import AWSSessionManager
@@ -21,10 +22,13 @@ async def trigger_report():
 async def get_alarm_name():
     """"""
 
+    parser = argparse.ArgumentParser(description="Get the CloudWatch alarm name for a given stack")
+    parser.add_argument("stack_name", type=str, help="The name of the CloudFormation stack")
     session_manager = AWSSessionManager()
     cf_client = session_manager.session.client("cloudformation")
     async with cf_client as client:
-        result = await client.describe_stacks(StackName=settings.AWS_SQS_STACK_NAME)
+        args = parser.parse_args()
+        result = await client.describe_stacks(StackName=args.stack_name)
         print(json.dumps(result, indent=2, default=str))
         alarm_name = result["Stacks"][0]["Outputs"][1]["OutputValue"]
         print(alarm_name)
