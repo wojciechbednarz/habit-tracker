@@ -1,10 +1,9 @@
 """CloduWatch alarm and metric testing purpose"""
 
+import argparse
 import asyncio
 import json
-import argparse
 
-from config import settings
 from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.infrastructure.aws.cloudwatch_client import CloudWatchClient
 

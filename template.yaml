@@ -159,8 +159,8 @@ Resources:
           DB_USER: app_user
           AWS_S3_BUCKET_NAME: !Ref ReportsBucket
           AWS_SES_SENDER_EMAIL: !Ref SESSenderEmail
-          AWS_SQS_QUEUE_URL:  
-            Fn::ImportValue: 
+          AWS_SQS_QUEUE_URL:
+            Fn::ImportValue:
               Fn::Sub: "${InfraStackName}-ReportQueueUrl"
       Policies:
       - Version: '2012-10-17'
@@ -204,8 +204,8 @@ Resources:
           DB_USER: app_user
           AWS_S3_BUCKET_NAME: !Ref ReportsBucket
           AWS_SES_SENDER_EMAIL: !Ref SESSenderEmail
-          AWS_SQS_QUEUE_URL:  
-            Fn::ImportValue: 
+          AWS_SQS_QUEUE_URL:
+            Fn::ImportValue:
               Fn::Sub: "${InfraStackName}-ReportQueueUrl"
       Policies:
       - Version: '2012-10-17'

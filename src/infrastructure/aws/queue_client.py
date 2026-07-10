@@ -2,7 +2,6 @@
 AWS SDK SQS client for handling SQS queue operations.
 """
 
-from config import settings
 import json
 import typing
 from datetime import UTC, datetime
@@ -11,6 +10,7 @@ from uuid import UUID
 
 from botocore.exceptions import ClientError
 
+from config import settings
 from src.infrastructure.aws.aws_helper import AWSSessionManager
 from src.utils.logger import setup_logger
 
